@@ -34,6 +34,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -48,13 +50,13 @@ private val Purple = Color(0xFF9226D6)
 private val Magenta = Color(0xFFE00091)
 private val TextMuted = Color(0xFFBDB5C9)
 
-private data class CatalogMovie(
+internal data class CatalogMovie(
     val title: String, val language: String, val year: String, val genre: String,
-    val leadActor: String, val director: String, val description: String
+    val leadActor: String, val director: String, val description: String,
+    val id: String = title, val posterUrl: String = ""
 )
 
-// The catalogue starts empty and will be populated through an approved Einthusan integration.
-private val catalogueMovies = emptyList<CatalogMovie>()
+// Live catalogue data is loaded by EinthusanCatalogRepository.
 
 class MainActivity : ComponentActivity() {
     private val crashFile by lazy { File(filesDir, "startup-crash.txt") }
@@ -136,6 +138,25 @@ private fun EinthusanTvApp() {
     var director by remember { mutableStateOf("") }
     var alphabetical by remember { mutableStateOf(false) }
     var selectedMovie by remember { mutableStateOf<CatalogMovie?>(null) }
+    var catalogueMovies by remember { mutableStateOf<List<CatalogMovie>>(emptyList()) }
+    var catalogueLoading by remember { mutableStateOf(true) }
+    var catalogueError by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(language) {
+        catalogueLoading = true
+        catalogueError = null
+        try {
+            val requestedLanguage = if (language == "All") "tamil" else language.lowercase()
+            catalogueMovies = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                EinthusanCatalogRepository().featured(requestedLanguage)
+            }
+            if (catalogueMovies.isEmpty()) catalogueError = "Einthusan returned no movie cards. The page layout may have changed or temporarily blocked this request."
+        } catch (error: Exception) {
+            catalogueError = error.message?.take(220) ?: "Could not connect to Einthusan. Check your internet connection and try again."
+        } finally {
+            catalogueLoading = false
+        }
+    }
     var playerOpen by remember { mutableStateOf(false) }
     var favourites by remember {
         mutableStateOf(
@@ -211,20 +232,27 @@ private fun EinthusanTvApp() {
                         }
                         "SIGN IN" -> SignInPage()
                         "MOVIES" -> {
-                            PageHeading("Explore Movies", "Einthusan movie catalogue")
+                            PageHeading("Explore Movies", "Live Einthusan movie catalogue")
                             FilterChips(languages, language) { language = it }
-                            MovieShelf(filtered, favourites, { selectedMovie = it }, { title ->
-                                favourites = if (title in favourites) favourites - title else favourites + title
-                            })
+                            when {
+                                catalogueLoading -> EmptyState("Loading " + language + " movies…", "Fetching live titles and poster artwork from Einthusan.")
+                                catalogueMovies.isNotEmpty() -> MovieShelf(filtered, favourites, { selectedMovie = it }, { title ->
+                                    favourites = if (title in favourites) favourites - title else favourites + title
+                                })
+                                else -> EmptyState("Catalogue unavailable", catalogueError ?: "No titles were returned.")
+                            }
                         }
                         else -> {
                             PageHeading("Welcome to EinthusanTV", "Your Einthusan catalogue will appear here")
                             Text("Browse by language", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                             FilterChips(languages, language) { language = it }
-                            EmptyState(
-                                "Catalogue connection pending",
-                                "No sample films or placeholder posters are shown. Real Einthusan titles, artwork and details will appear here when an approved catalogue connection is available."
-                            )
+                            when {
+                                catalogueLoading -> EmptyState("Loading Einthusan catalogue…", "Connecting to the live Tamil movie listings.")
+                                catalogueMovies.isNotEmpty() -> MovieShelf(filtered, favourites, { selectedMovie = it }, { title ->
+                                    favourites = if (title in favourites) favourites - title else favourites + title
+                                })
+                                else -> EmptyState("Catalogue unavailable", catalogueError ?: "No titles were returned.")
+                            }
                         }
                     }
                 }
@@ -376,10 +404,14 @@ private fun PosterArtwork(movie: CatalogMovie, modifier: Modifier = Modifier) {
         "adventure" -> listOf(Color(0xFF173D60), Color(0xFF398B83))
         else -> listOf(Color(0xFF55234F), Color(0xFFB45A73))
     }
-    Box(modifier.background(Brush.linearGradient(colors), RoundedCornerShape(10.dp)).padding(10.dp)) {
-        Text(movie.language.uppercase(), Modifier.align(Alignment.TopStart), color = Color.White.copy(alpha = 0.75f), fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
-        Text(movie.title.uppercase(), Modifier.align(Alignment.Center), color = Color.White, fontSize = 17.sp, lineHeight = 19.sp, fontWeight = FontWeight.Black)
-        Text("${movie.genre.uppercase()}  •  ${movie.year}", Modifier.align(Alignment.BottomStart), color = Color.White.copy(alpha = 0.8f), fontSize = 8.sp)
+    Box(modifier.background(Brush.linearGradient(colors), RoundedCornerShape(10.dp))) {
+        if (movie.posterUrl.isNotBlank()) AsyncImage(model = movie.posterUrl, contentDescription = movie.title, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xCC090711)))).padding(10.dp)) {
+            Text(movie.language.uppercase(), Modifier.align(Alignment.TopStart), color = Color.White.copy(alpha = 0.95f), fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
+            Text(movie.title.uppercase(), Modifier.align(Alignment.Center), color = Color.White, fontSize = 17.sp, lineHeight = 19.sp, fontWeight = FontWeight.Black)
+            val meta = listOf(movie.genre, movie.year).filter { it.isNotBlank() }.joinToString(" • ")
+            if (meta.isNotBlank()) Text(meta.uppercase(), Modifier.align(Alignment.BottomStart), color = Color.White.copy(alpha = 0.9f), fontSize = 8.sp)
+        }
     }
 }
 
