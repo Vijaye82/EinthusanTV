@@ -34,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -268,6 +269,43 @@ private fun MovieShelf(
 }
 
 @Composable
+private fun PosterArtwork(movie: DemoMovie, modifier: Modifier = Modifier) {
+    val palette = when (movie.genre.lowercase()) {
+        "thriller" -> listOf(Color(0xFF311B36), Color(0xFF9A3E32))
+        "family" -> listOf(Color(0xFF164B4B), Color(0xFFB17B3D))
+        "adventure" -> listOf(Color(0xFF173D60), Color(0xFF3C8B83))
+        else -> listOf(Color(0xFF542B43), Color(0xFFBD7650))
+    }
+    Box(
+        modifier = modifier
+            .background(Brush.linearGradient(palette), RoundedCornerShape(11.dp))
+            .border(1.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(11.dp))
+            .padding(12.dp)
+    ) {
+        Text(
+            movie.language.uppercase(),
+            modifier = Modifier.align(Alignment.TopStart),
+            color = Color.White.copy(alpha = 0.82f),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 2.sp
+        )
+        Text(
+            movie.title.uppercase(),
+            modifier = Modifier.align(Alignment.Center),
+            color = Color.White,
+            fontSize = 19.sp,
+            lineHeight = 22.sp,
+            fontWeight = FontWeight.Black
+        )
+        Column(modifier = Modifier.align(Alignment.BottomStart), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(movie.genre.uppercase(), color = Gold, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+            Text(movie.year, color = Color.White.copy(alpha = 0.85f), fontSize = 10.sp)
+        }
+    }
+}
+
+@Composable
 private fun MovieCard(movie: DemoMovie, saved: Boolean, onSelect: (DemoMovie) -> Unit, onToggleSaved: (String) -> Unit) {
     var focused by remember { mutableStateOf(false) }
     Column(
@@ -279,10 +317,7 @@ private fun MovieCard(movie: DemoMovie, saved: Boolean, onSelect: (DemoMovie) ->
             .padding(13.dp),
         verticalArrangement = Arrangement.spacedBy(7.dp)
     ) {
-        Box(
-            modifier = Modifier.fillMaxWidth().height(105.dp).background(PanelLight, RoundedCornerShape(9.dp)),
-            contentAlignment = Alignment.Center
-        ) { Text(movie.language.uppercase(), color = Gold, fontSize = 17.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp) }
+        PosterArtwork(movie = movie, modifier = Modifier.fillMaxWidth().height(158.dp))
         Text(movie.title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1)
         Text("${movie.year} • ${movie.genre}", color = Muted, fontSize = 11.sp)
         Text("Starring: ${movie.leadActor}", color = Muted, fontSize = 10.sp, maxLines = 1)
@@ -302,18 +337,32 @@ private fun MovieCard(movie: DemoMovie, saved: Boolean, onSelect: (DemoMovie) ->
 
 @Composable
 private fun MovieDetails(movie: DemoMovie, saved: Boolean, onBack: () -> Unit, onToggleSaved: () -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(13.dp)) {
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("MOVIE DETAILS", color = Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
-        Text(movie.title, color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold)
-        Text("${movie.language} • ${movie.year} • ${movie.genre}", color = Muted, fontSize = 15.sp)
-        Text("Starring: ${movie.leadActor}", color = Gold, fontSize = 15.sp)
-        Text("Directed by: ${movie.director}", color = Muted, fontSize = 14.sp)
-        Text(movie.description, color = Color.White, fontSize = 17.sp)
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Button(onClick = onBack) { Text("Back to browsing") }
-            Button(onClick = onToggleSaved) { Text(if (saved) "Remove from My List" else "Add to My List") }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(26.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            PosterArtwork(movie = movie, modifier = Modifier.width(220.dp).height(310.dp))
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(13.dp)
+            ) {
+                Text(movie.title, color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold)
+                Text("${movie.language}  •  ${movie.year}  •  ${movie.genre}", color = Gold, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Text(movie.description, color = Color.White, fontSize = 18.sp, lineHeight = 26.sp)
+                Text("CAST", color = Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                Text(movie.leadActor, color = Color.White, fontSize = 16.sp)
+                Text("DIRECTOR", color = Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                Text(movie.director, color = Color.White, fontSize = 16.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(onClick = onBack) { Text("Back to browsing") }
+                    Button(onClick = onToggleSaved) { Text(if (saved) "Remove from My List" else "Add to My List") }
+                }
+                Text("Playback will be enabled after the official Einthusan integration is supplied.", color = Muted, fontSize = 12.sp)
+            }
         }
-        InfoPanel("Playback not connected", "Play will be added when Einthusan supplies an approved playback integration. This prototype does not scrape or embed streams.")
     }
 }
 
