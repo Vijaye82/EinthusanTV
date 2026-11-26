@@ -1,6 +1,8 @@
 package tv.einthusan.app
 
 import android.os.Bundle
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -50,6 +52,11 @@ private val demoMovies = listOf(
 )
 
 class MainActivity : ComponentActivity() {
+    override fun onResume() {
+        super.onResume()
+        resumePendingApkInstall(this)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent { EinthusanTvApp() }
@@ -58,6 +65,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun EinthusanTvApp() {
+    val context = LocalContext.current
     val languages = listOf("All", "Tamil", "Telugu", "Hindi", "Malayalam", "Kannada", "Bengali", "Punjabi", "Marathi")
     val genres = listOf("All", "Action", "Drama", "Comedy", "Romance", "Thriller", "Family", "Adventure")
     var page by remember { mutableStateOf("HOME") }
@@ -91,6 +99,7 @@ private fun EinthusanTvApp() {
 
     MaterialTheme {
         Surface(Modifier.fillMaxSize(), color = Background) {
+            AppUpdateChecker()
             if (playerOpen && selectedMovie != null) {
                 PlayerScreen(selectedMovie!!, onBack = { playerOpen = false })
             } else {
@@ -99,9 +108,13 @@ private fun EinthusanTvApp() {
                     verticalArrangement = Arrangement.spacedBy(15.dp)
                 ) {
                     TopNavigation(page) { destination ->
-                        page = destination
-                        selectedMovie = null
-                        playerOpen = false
+                        if (destination == "WEBSITE") {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://einthusan.tv/")))
+                        } else {
+                            page = destination
+                            selectedMovie = null
+                            playerOpen = false
+                        }
                     }
                     if (selectedMovie != null) {
                         MovieDetails(
@@ -166,7 +179,7 @@ private fun TopNavigation(page: String, onNavigate: (String) -> Unit) {
             Text("TV", color = Magenta, fontSize = 25.sp, fontWeight = FontWeight.Black)
         }
         Spacer(Modifier.weight(1f))
-        listOf("HOME", "MOVIES", "SEARCH", "MY LIST", "SIGN IN").forEach { item ->
+        listOf("HOME", "MOVIES", "SEARCH", "MY LIST", "SIGN IN", "WEBSITE").forEach { item ->
             NavButton(item, page == item) { onNavigate(item) }
         }
     }
