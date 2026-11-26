@@ -26,13 +26,25 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Build debug APK
-        run: gradle --no-daemon :app:assembleDebug -PversionCode=${{ github.run_number }}
-
-      - name: Prepare APK
+      - name: Build APK
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           mkdir -p release
-          cp app/build/outputs/apk/debug/app-debug.apk release/EinthusanTV-preview.apk
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/einthusan-release.jks"
+            export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/einthusan-release.jks"
+            gradle --no-daemon :app:assembleRelease -PversionCode=${{ github.run_number }}
+            cp app/build/outputs/apk/release/app-release.apk release/EinthusanTV-preview.apk
+            echo "Built stable-key signed APK."
+          else
+            echo "::warning::Signing secrets are not configured. Building a temporary debug APK; in-place updates will not work reliably until stable signing is configured."
+            gradle --no-daemon :app:assembleDebug -PversionCode=${{ github.run_number }}
+            cp app/build/outputs/apk/debug/app-debug.apk release/EinthusanTV-preview.apk
+          fi
 
       - name: Upload APK as workflow artifact
         uses: actions/upload-artifact@v4
