@@ -3,65 +3,41 @@ package tv.einthusan.app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.runtime.DisposableEffect
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.PlayerView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
 
-private val Ink = Color(0xFF101014)
-private val Panel = Color(0xFF1B1B22)
-private val PanelLight = Color(0xFF292932)
-private val Gold = Color(0xFFFFC857)
-private val Muted = Color(0xFFB8B8C2)
+private val Background = Color(0xFF090711)
+private val SurfaceDark = Color(0xFF171323)
+private val SurfaceRaised = Color(0xFF241B35)
+private val Purple = Color(0xFF9226D6)
+private val Magenta = Color(0xFFE00091)
+private val TextMuted = Color(0xFFBDB5C9)
 
 private data class DemoMovie(
-    val title: String,
-    val language: String,
-    val year: String,
-    val genre: String,
-    val leadActor: String,
-    val director: String,
-    val description: String
+    val title: String, val language: String, val year: String, val genre: String,
+    val leadActor: String, val director: String, val description: String
 )
 
-// Fictional sample entries and cast names: replace with Einthusan-approved catalogue data.
+// Fictional development entries only. Replace with catalogue data supplied by Einthusan.
 private val demoMovies = listOf(
     DemoMovie("Monsoon Letters", "Tamil", "2024", "Drama", "Arun Dev", "Leela Raman", "A quiet family drama set across two generations."),
     DemoMovie("The Last Mango Tree", "Telugu", "2023", "Drama", "Meera Rao", "Kiran Varma", "A village comes together to save its oldest orchard."),
@@ -80,174 +56,280 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun EinthusanTvApp() {
     val languages = listOf("All", "Tamil", "Telugu", "Hindi", "Malayalam", "Kannada", "Bengali", "Punjabi", "Marathi")
-    val years = listOf("All", "2024", "2023", "2022")
-    val genres = listOf("All", "Drama", "Thriller", "Family", "Adventure")
-    var selectedLanguage by remember { mutableStateOf("All") }
-    var selectedYear by remember { mutableStateOf("All") }
-    var selectedGenre by remember { mutableStateOf("All") }
-    var alphabetical by remember { mutableStateOf(false) }
+    val genres = listOf("All", "Action", "Drama", "Comedy", "Romance", "Thriller", "Family", "Adventure")
     var page by remember { mutableStateOf("HOME") }
+    var language by remember { mutableStateOf("All") }
+    var genre by remember { mutableStateOf("All") }
+    var year by remember { mutableStateOf("All") }
     var query by remember { mutableStateOf("") }
-    var actorQuery by remember { mutableStateOf("") }
-    var directorQuery by remember { mutableStateOf("") }
+    var actor by remember { mutableStateOf("") }
+    var director by remember { mutableStateOf("") }
+    var alphabetical by remember { mutableStateOf(false) }
     var selectedMovie by remember { mutableStateOf<DemoMovie?>(null) }
     var playerOpen by remember { mutableStateOf(false) }
     var favourites by remember { mutableStateOf(setOf<String>()) }
 
-    val visibleMovies = demoMovies.filter { movie ->
-        (selectedLanguage == "All" || movie.language == selectedLanguage) &&
-            (selectedYear == "All" || movie.year == selectedYear) &&
-            (selectedGenre == "All" || movie.genre.equals(selectedGenre, ignoreCase = true)) &&
-            (query.isBlank() || movie.title.contains(query, ignoreCase = true) ||
-                movie.language.contains(query, ignoreCase = true)) &&
-            (actorQuery.isBlank() || movie.leadActor.contains(actorQuery, ignoreCase = true)) &&
-            (directorQuery.isBlank() || movie.director.contains(directorQuery, ignoreCase = true))
-    }.let { movies ->
-        if (alphabetical) movies.sortedBy { it.title.lowercase() } else movies
-    }
+    val filtered = demoMovies.filter { movie ->
+        (language == "All" || movie.language == language) &&
+            (genre == "All" || movie.genre.equals(genre, true)) &&
+            (year == "All" || movie.year == year) &&
+            (query.isBlank() || movie.title.contains(query, true) || movie.language.contains(query, true)) &&
+            (actor.isBlank() || movie.leadActor.contains(actor, true)) &&
+            (director.isBlank() || movie.director.contains(director, true))
+    }.let { list -> if (alphabetical) list.sortedBy { it.title.lowercase() } else list }
 
     MaterialTheme {
-        Surface(modifier = Modifier.fillMaxSize(), color = Ink) {
+        Surface(Modifier.fillMaxSize(), color = Background) {
             if (playerOpen && selectedMovie != null) {
-                PlayerScreen(movie = selectedMovie!!, onBack = { playerOpen = false })
+                PlayerScreen(selectedMovie!!, onBack = { playerOpen = false })
             } else {
-            Column(
-                modifier = Modifier.fillMaxSize().padding(start = 52.dp, end = 52.dp, top = 25.dp, bottom = 18.dp),
-                verticalArrangement = Arrangement.spacedBy(13.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("EINTHUSAN", color = Gold, fontSize = 27.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
-                    Spacer(Modifier.width(10.dp))
-                    Text("TV", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.weight(1f))
-                    listOf("HOME", "SEARCH", "MY LIST", "SIGN IN").forEach { item ->
-                        NavButton(item, active = page == item, onClick = {
-                            page = item
-                            selectedMovie = null
-                            playerOpen = false
-                        })
-                        Spacer(Modifier.width(7.dp))
+                Column(
+                    Modifier.fillMaxSize().padding(horizontal = 42.dp, vertical = 22.dp),
+                    verticalArrangement = Arrangement.spacedBy(15.dp)
+                ) {
+                    TopNavigation(page) { destination ->
+                        page = destination
+                        selectedMovie = null
+                        playerOpen = false
                     }
-                }
-
-                if (selectedMovie != null) {
-                    MovieDetails(
-                        movie = selectedMovie!!,
-                        saved = favourites.contains(selectedMovie!!.title),
-                        onBack = { selectedMovie = null },
-                        onPlay = { playerOpen = true },
-                        onToggleSaved = {
-                            val title = selectedMovie!!.title
-                            favourites = if (title in favourites) favourites - title else favourites + title
-                        }
-                    )
-                } else {
-                    when (page) {
-                        "SEARCH" -> {
-                            Text("FIND YOUR FILM", color = Color.White, fontSize = 27.sp, fontWeight = FontWeight.Bold)
-                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                OutlinedTextField(
-                                    value = query,
-                                    onValueChange = { query = it },
-                                    label = { Text("Movie title or language") },
-                                    singleLine = true,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                OutlinedTextField(
-                                    value = actorQuery,
-                                    onValueChange = { actorQuery = it },
-                                    label = { Text("Actor") },
-                                    singleLine = true,
-                                    modifier = Modifier.weight(1f)
-                                )
+                    if (selectedMovie != null) {
+                        MovieDetails(
+                            selectedMovie!!, selectedMovie!!.title in favourites,
+                            onBack = { selectedMovie = null },
+                            onPlay = { playerOpen = true },
+                            onToggleSaved = {
+                                val title = selectedMovie!!.title
+                                favourites = if (title in favourites) favourites - title else favourites + title
                             }
-                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                OutlinedTextField(
-                                    value = directorQuery,
-                                    onValueChange = { directorQuery = it },
-                                    label = { Text("Director") },
-                                    singleLine = true,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Text("GENRE", color = Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        items(genres) { genre ->
-                                            TvChoice(genre, selectedGenre == genre) { selectedGenre = genre }
-                                        }
-                                    }
-                                }
-                            }
-                            Text("FILTER BY YEAR", color = Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                items(years) { year -> TvChoice(year, selectedYear == year) { selectedYear = year } }
-                            }
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Text("SORT", color = Muted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                TvChoice("A–Z", alphabetical) { alphabetical = true }
-                                TvChoice("Default", !alphabetical) { alphabetical = false }
-                                Spacer(Modifier.width(12.dp))
-                                Text("${visibleMovies.size} sample results", color = Muted, fontSize = 12.sp)
-                            }
-                            MovieShelf(visibleMovies, favourites, onSelect = { selectedMovie = it }, onToggleSaved = {
-                                favourites = if (it in favourites) favourites - it else favourites + it
-                            })
-                        }
+                        )
+                    } else when (page) {
+                        "SEARCH" -> SearchPage(
+                            query, { query = it }, actor, { actor = it }, director, { director = it },
+                            genre, { genre = it }, year, { year = it }, alphabetical, { alphabetical = it },
+                            filtered, favourites, { selectedMovie = it },
+                            { title -> favourites = if (title in favourites) favourites - title else favourites + title }
+                        )
                         "MY LIST" -> {
-                            Text("MY LIST", color = Color.White, fontSize = 27.sp, fontWeight = FontWeight.Bold)
+                            PageHeading("My List", "Your saved films, ready when you are")
                             val saved = demoMovies.filter { it.title in favourites }
-                            if (saved.isEmpty()) {
-                                InfoPanel("Your list is empty", "Open a movie and choose Add to My List to save it here.")
-                            } else {
-                                MovieShelf(saved, favourites, onSelect = { selectedMovie = it }, onToggleSaved = {
-                                    favourites = if (it in favourites) favourites - it else favourites + it
-                                })
-                            }
+                            if (saved.isEmpty()) EmptyState("Your list is empty", "Open a title and choose + My List to save it here.")
+                            else MovieShelf(saved, favourites, { selectedMovie = it }, { title -> favourites = favourites - title })
                         }
-                        "SIGN IN" -> SignInPlaceholder()
-                        else -> {
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text("YOUR CINEMA, ON THE BIG SCREEN", color = Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
-                                Text("Discover movies across languages", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
-                                Text("Choose a language and explore the sample collection.", color = Muted, fontSize = 14.sp)
-                            }
-                            Text("BROWSE BY LANGUAGE", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                            LazyRow(horizontalArrangement = Arrangement.spacedBy(9.dp), contentPadding = PaddingValues(vertical = 3.dp)) {
-                                items(languages) { language ->
-                                    TvChoice(language, selectedLanguage == language) { selectedLanguage = language }
-                                }
-                            }
-                            Text(if (selectedLanguage == "All") "SAMPLE PICKS" else "SAMPLE PICKS • ${selectedLanguage.uppercase()}", color = Gold, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
-                            MovieShelf(visibleMovies, favourites, onSelect = { selectedMovie = it }, onToggleSaved = {
-                                favourites = if (it in favourites) favourites - it else favourites + it
+                        "SIGN IN" -> SignInPage()
+                        "MOVIES" -> {
+                            PageHeading("Explore Movies", "Browse the development collection")
+                            FilterChips(languages, language) { language = it }
+                            MovieShelf(filtered, favourites, { selectedMovie = it }, { title ->
+                                favourites = if (title in favourites) favourites - title else favourites + title
                             })
-                            InfoPanel("Integration status", "Fictional sample titles only. Official catalogue, existing-account sign-in and playback will be connected through Einthusan-approved interfaces.")
+                        }
+                        else -> {
+                            HeroBanner(
+                                onPlay = { selectedMovie = demoMovies.first(); playerOpen = true },
+                                onDetails = { selectedMovie = demoMovies.first() }
+                            )
+                            Text("Browse by language", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                            FilterChips(languages, language) { language = it }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("New releases", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                Spacer(Modifier.weight(1f))
+                                Text("DEVELOPMENT SAMPLE", color = TextMuted, fontSize = 10.sp, letterSpacing = 1.2.sp)
+                            }
+                            MovieShelf(filtered, favourites, { selectedMovie = it }, { title ->
+                                favourites = if (title in favourites) favourites - title else favourites + title
+                            })
+                            Text("Illustrative titles and artwork only • Einthusan catalogue integration pending", color = TextMuted, fontSize = 10.sp)
                         }
                     }
                 }
-
-                Spacer(Modifier.weight(1f, fill = false))
-                Text("DEVELOPMENT PREVIEW • SAMPLE CONTENT ONLY • OFFICIAL INTEGRATION PENDING", color = Muted, fontSize = 10.sp, letterSpacing = 1.sp)
-            }
             }
         }
     }
 }
 
 @Composable
-private fun PlayerScreen(movie: DemoMovie, onBack: () -> Unit) {
-    val context = LocalContext.current
-    val player = remember(context) {
-        ExoPlayer.Builder(context).build().apply {
-            playWhenReady = false
+private fun TopNavigation(page: String, onNavigate: (String) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Einthusan", color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.Black)
+            Text("TV", color = Magenta, fontSize = 25.sp, fontWeight = FontWeight.Black)
+        }
+        Spacer(Modifier.weight(1f))
+        listOf("HOME", "MOVIES", "SEARCH", "MY LIST", "SIGN IN").forEach { item ->
+            NavButton(item, page == item) { onNavigate(item) }
         }
     }
+}
 
-    DisposableEffect(player) {
-        onDispose { player.release() }
+@Composable
+private fun HeroBanner(onPlay: () -> Unit, onDetails: () -> Unit) {
+    Box(
+        Modifier.fillMaxWidth().height(242.dp)
+            .background(Brush.horizontalGradient(listOf(Color(0xFF25152F), Color(0xFF512044), Color(0xFF171323))), RoundedCornerShape(20.dp))
+            .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(20.dp))
+            .padding(horizontal = 30.dp, vertical = 23.dp)
+    ) {
+        Column(Modifier.align(Alignment.CenterStart).width(440.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Text("FEATURED • TAMIL • 2024", color = Color(0xFFFFA9E5), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.8.sp)
+            Text("Monsoon Letters", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Black)
+            Text("Drama  •  HD concept", color = Color.White.copy(alpha = 0.82f), fontSize = 14.sp)
+            Text("A quiet family drama set across two generations.", color = TextMuted, fontSize = 14.sp)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                PrimaryButton("▶  Play preview", onPlay)
+                SecondaryButton("More info", onDetails)
+            }
+        }
+        Column(Modifier.align(Alignment.CenterEnd).padding(end = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("ET", color = Color.White.copy(alpha = 0.12f), fontSize = 92.sp, fontWeight = FontWeight.Black)
+            Text("EINTHUSAN TV", color = Color.White.copy(alpha = 0.55f), fontSize = 9.sp, letterSpacing = 2.sp)
+        }
     }
+}
 
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+@Composable
+private fun SearchPage(
+    query: String, onQuery: (String) -> Unit, actor: String, onActor: (String) -> Unit,
+    director: String, onDirector: (String) -> Unit, genre: String, onGenre: (String) -> Unit,
+    year: String, onYear: (String) -> Unit, alphabetical: Boolean, onAlphabetical: (Boolean) -> Unit,
+    movies: List<DemoMovie>, favourites: Set<String>, onSelect: (DemoMovie) -> Unit, onToggleSaved: (String) -> Unit
+) {
+    PageHeading("Search", "Find films by title, cast, director or genre")
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        SearchField("Movie title or language", query, onQuery, Modifier.weight(1.4f))
+        SearchField("Actor", actor, onActor, Modifier.weight(1f))
+        SearchField("Director", director, onDirector, Modifier.weight(1f))
+    }
+    Text("Browse by genre", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+    FilterChips(listOf("All", "Action", "Drama", "Comedy", "Romance", "Thriller", "Family", "Adventure"), genre, onGenre)
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Year", color = TextMuted, fontSize = 12.sp)
+        FilterChips(listOf("All", "2024", "2023", "2022"), year, onYear)
+        Spacer(Modifier.width(15.dp))
+        SecondaryButton(if (alphabetical) "A–Z ✓" else "Sort A–Z") { onAlphabetical(!alphabetical) }
+        Text("${movies.size} sample results", color = TextMuted, fontSize = 12.sp)
+    }
+    MovieShelf(movies, favourites, onSelect, onToggleSaved)
+}
+
+@Composable
+private fun SearchField(label: String, value: String, onValue: (String) -> Unit, modifier: Modifier = Modifier) {
+    OutlinedTextField(
+        value = value, onValueChange = onValue,
+        label = { Text(label, color = TextMuted, fontSize = 12.sp) },
+        singleLine = true, modifier = modifier, shape = RoundedCornerShape(12.dp)
+    )
+}
+
+@Composable
+private fun PageHeading(title: String, subtitle: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(title, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+        Text(subtitle, color = TextMuted, fontSize = 13.sp)
+    }
+}
+
+@Composable
+private fun FilterChips(options: List<String>, selected: String, onSelect: (String) -> Unit) {
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 3.dp)) {
+        items(options) { option -> ChoiceChip(option, selected == option) { onSelect(option) } }
+    }
+}
+
+@Composable
+private fun MovieShelf(movies: List<DemoMovie>, favourites: Set<String>, onSelect: (DemoMovie) -> Unit, onToggleSaved: (String) -> Unit) {
+    if (movies.isEmpty()) EmptyState("No titles found", "Try changing your filters.")
+    else LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(vertical = 7.dp)) {
+        items(movies) { movie ->
+            MovieCard(movie, movie.title in favourites, { onSelect(movie) }, { onToggleSaved(movie.title) })
+        }
+    }
+}
+
+@Composable
+private fun MovieCard(movie: DemoMovie, saved: Boolean, onSelect: () -> Unit, onToggleSaved: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    Column(
+        Modifier.width(184.dp).background(SurfaceDark, RoundedCornerShape(13.dp))
+            .border(if (focused) 3.dp else 1.dp, if (focused) Magenta else Color.White.copy(alpha = 0.08f), RoundedCornerShape(13.dp))
+            .onFocusChanged { focused = it.isFocused }.focusable().padding(9.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        PosterArtwork(movie, Modifier.fillMaxWidth().height(145.dp))
+        Text(movie.title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Text("${movie.language}  •  ${movie.year}", color = TextMuted, fontSize = 10.sp)
+        Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            PrimaryButton("Details", onSelect, compact = true)
+            SecondaryButton(if (saved) "♥" else "+ List", onToggleSaved, compact = true)
+        }
+    }
+}
+
+@Composable
+private fun PosterArtwork(movie: DemoMovie, modifier: Modifier = Modifier) {
+    val colors = when (movie.genre.lowercase()) {
+        "thriller" -> listOf(Color(0xFF25152F), Color(0xFF8C315A))
+        "family" -> listOf(Color(0xFF174B4B), Color(0xFF96633D))
+        "adventure" -> listOf(Color(0xFF173D60), Color(0xFF398B83))
+        else -> listOf(Color(0xFF55234F), Color(0xFFB45A73))
+    }
+    Box(modifier.background(Brush.linearGradient(colors), RoundedCornerShape(10.dp)).padding(10.dp)) {
+        Text(movie.language.uppercase(), Modifier.align(Alignment.TopStart), color = Color.White.copy(alpha = 0.75f), fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
+        Text(movie.title.uppercase(), Modifier.align(Alignment.Center), color = Color.White, fontSize = 17.sp, lineHeight = 19.sp, fontWeight = FontWeight.Black)
+        Text("${movie.genre.uppercase()}  •  ${movie.year}", Modifier.align(Alignment.BottomStart), color = Color.White.copy(alpha = 0.8f), fontSize = 8.sp)
+    }
+}
+
+@Composable
+private fun MovieDetails(movie: DemoMovie, saved: Boolean, onBack: () -> Unit, onPlay: () -> Unit, onToggleSaved: () -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(top = 18.dp), horizontalArrangement = Arrangement.spacedBy(28.dp), verticalAlignment = Alignment.Top) {
+        PosterArtwork(movie, Modifier.width(245.dp).height(340.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(13.dp)) {
+            Text("MOVIE DETAILS  •  DEVELOPMENT SAMPLE", color = Color(0xFFFFA9E5), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+            Text(movie.title, color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold)
+            Text("${movie.language}  •  ${movie.year}  •  ${movie.genre}", color = Color(0xFFFFA9E5), fontSize = 15.sp)
+            Text(movie.description, color = TextMuted, fontSize = 17.sp, lineHeight = 25.sp)
+            Text("CAST  •  ${movie.leadActor}", color = Color.White, fontSize = 14.sp)
+            Text("DIRECTOR  •  ${movie.director}", color = Color.White, fontSize = 14.sp)
+            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                PrimaryButton("▶  Play", onPlay)
+                SecondaryButton(if (saved) "♥  In My List" else "+  My List", onToggleSaved)
+                SecondaryButton("Back", onBack)
+            }
+            Text("No authorised stream is connected yet.", color = TextMuted, fontSize = 11.sp)
+        }
+    }
+}
+
+@Composable
+private fun SignInPage() {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
+            Modifier.width(560.dp).background(SurfaceDark, RoundedCornerShape(20.dp))
+                .border(1.dp, Purple.copy(alpha = 0.5f), RoundedCornerShape(20.dp)).padding(30.dp),
+            verticalArrangement = Arrangement.spacedBy(13.dp)
+        ) {
+            Text("EinthusanTV", color = Color.White, fontSize = 27.sp, fontWeight = FontWeight.Black)
+            Text("Sign in to your Einthusan account", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text("Your favourite South Asian cinema, on the big screen.", color = TextMuted, fontSize = 13.sp)
+            EmptyState("Account connection pending", "We need Einthusan's approved sign-in method before connecting existing accounts. Please do not enter your password in this development preview.")
+        }
+    }
+}
+
+@Composable
+private fun EmptyState(title: String, message: String) {
+    Column(Modifier.fillMaxWidth().background(SurfaceDark, RoundedCornerShape(13.dp)).padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        Text(message, color = TextMuted, fontSize = 12.sp, lineHeight = 18.sp)
+    }
+}
+
+@Composable
+private fun PlayerScreen(movie: DemoMovie, onBack: () -> Unit) {
+    val context = LocalContext.current
+    val player = remember(context) { ExoPlayer.Builder(context).build().apply { playWhenReady = false } }
+    DisposableEffect(player) { onDispose { player.release() } }
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
         AndroidView(
             factory = { viewContext ->
                 PlayerView(viewContext).apply {
@@ -262,32 +344,18 @@ private fun PlayerScreen(movie: DemoMovie, onBack: () -> Unit) {
             modifier = Modifier.fillMaxSize()
         )
         Row(
-            modifier = Modifier.align(Alignment.TopStart).fillMaxWidth()
-                .background(Color.Black.copy(alpha = 0.58f))
-                .padding(horizontal = 28.dp, vertical = 18.dp),
+            Modifier.align(Alignment.TopStart).fillMaxWidth().background(Color(0xCC10091A)).padding(horizontal = 28.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Button(onClick = onBack) { Text("Back") }
+            SecondaryButton("‹ Back", onBack)
             Spacer(Modifier.width(18.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(movie.title, color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
-                Text("${movie.language} • ${movie.year}", color = Muted, fontSize = 12.sp)
-            }
+            Text(movie.title, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         }
-        Column(
-            modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth()
-                .background(Color.Black.copy(alpha = 0.72f))
-                .padding(horizontal = 28.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(5.dp)
-        ) {
-            Text("PLAYER PREVIEW — NO STREAM CONNECTED", color = Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
-            Text(
-                "The Media3 player and remote-friendly controller are installed. Playback, seek bar, audio tracks and subtitles become active when Einthusan supplies an authorised stream and track metadata.",
-                color = Color.White,
-                fontSize = 12.sp,
-                lineHeight = 17.sp
-            )
-        }
+        Text(
+            "PLAYER PREVIEW • NO STREAM CONNECTED",
+            Modifier.align(Alignment.BottomStart).fillMaxWidth().background(Color(0xCC10091A)).padding(16.dp),
+            color = Color(0xFFFFA9E5), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp
+        )
     }
 }
 
@@ -296,162 +364,43 @@ private fun NavButton(label: String, active: Boolean, onClick: () -> Unit) {
     Button(
         onClick = onClick,
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (active) Gold else Color.Transparent,
-            contentColor = if (active) Ink else Muted,
-            focusedContainerColor = Gold,
-            focusedContentColor = Ink
+            containerColor = if (active) Purple else Color.Transparent,
+            contentColor = if (active) Color.White else TextMuted,
+            focusedContainerColor = Magenta, focusedContentColor = Color.White
         ),
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 7.dp)
-    ) { Text(label, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+        shape = RoundedCornerShape(22.dp),
+        contentPadding = PaddingValues(horizontal = 13.dp, vertical = 7.dp)
+    ) { Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold) }
 }
 
 @Composable
-private fun TvChoice(label: String, active: Boolean, onClick: () -> Unit) {
+private fun ChoiceChip(label: String, active: Boolean, onClick: () -> Unit) {
+    Button(
+        onClick = onClick, modifier = Modifier.height(39.dp), shape = RoundedCornerShape(10.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (active) Purple else SurfaceRaised, contentColor = Color.White,
+            focusedContainerColor = Magenta, focusedContentColor = Color.White
+        ),
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 5.dp)
+    ) { Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold) }
+}
+
+@Composable
+private fun PrimaryButton(label: String, onClick: () -> Unit, compact: Boolean = false) {
     Button(
         onClick = onClick,
-        modifier = Modifier.height(44.dp),
-        shape = RoundedCornerShape(10.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (active) Gold else Panel,
-            contentColor = if (active) Ink else Color.White,
-            focusedContainerColor = Gold,
-            focusedContentColor = Ink
-        ),
-        contentPadding = PaddingValues(horizontal = 15.dp, vertical = 6.dp)
-    ) { Text(label, fontWeight = FontWeight.Bold, fontSize = 12.sp) }
+        colors = ButtonDefaults.buttonColors(containerColor = Magenta, contentColor = Color.White, focusedContainerColor = Purple),
+        shape = RoundedCornerShape(9.dp),
+        contentPadding = PaddingValues(horizontal = if (compact) 9.dp else 17.dp, vertical = if (compact) 3.dp else 8.dp)
+    ) { Text(label, fontSize = if (compact) 10.sp else 12.sp, fontWeight = FontWeight.Bold) }
 }
 
 @Composable
-private fun MovieShelf(
-    movies: List<DemoMovie>,
-    favourites: Set<String>,
-    onSelect: (DemoMovie) -> Unit,
-    onToggleSaved: (String) -> Unit
-) {
-    if (movies.isEmpty()) {
-        InfoPanel("No sample titles found", "Try changing the search, actor or year filter.")
-    } else {
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(15.dp), contentPadding = PaddingValues(vertical = 6.dp)) {
-            items(movies) { movie -> MovieCard(movie, movie.title in favourites, onSelect, onToggleSaved) }
-        }
-    }
-}
-
-@Composable
-private fun PosterArtwork(movie: DemoMovie, modifier: Modifier = Modifier) {
-    val palette = when (movie.genre.lowercase()) {
-        "thriller" -> listOf(Color(0xFF311B36), Color(0xFF9A3E32))
-        "family" -> listOf(Color(0xFF164B4B), Color(0xFFB17B3D))
-        "adventure" -> listOf(Color(0xFF173D60), Color(0xFF3C8B83))
-        else -> listOf(Color(0xFF542B43), Color(0xFFBD7650))
-    }
-    Box(
-        modifier = modifier
-            .background(Brush.linearGradient(palette), RoundedCornerShape(11.dp))
-            .border(1.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(11.dp))
-            .padding(12.dp)
-    ) {
-        Text(
-            movie.language.uppercase(),
-            modifier = Modifier.align(Alignment.TopStart),
-            color = Color.White.copy(alpha = 0.82f),
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 2.sp
-        )
-        Text(
-            movie.title.uppercase(),
-            modifier = Modifier.align(Alignment.Center),
-            color = Color.White,
-            fontSize = 19.sp,
-            lineHeight = 22.sp,
-            fontWeight = FontWeight.Black
-        )
-        Column(modifier = Modifier.align(Alignment.BottomStart), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(movie.genre.uppercase(), color = Gold, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
-            Text(movie.year, color = Color.White.copy(alpha = 0.85f), fontSize = 10.sp)
-        }
-    }
-}
-
-@Composable
-private fun MovieCard(movie: DemoMovie, saved: Boolean, onSelect: (DemoMovie) -> Unit, onToggleSaved: (String) -> Unit) {
-    var focused by remember { mutableStateOf(false) }
-    Column(
-        modifier = Modifier.width(205.dp)
-            .background(Panel, RoundedCornerShape(14.dp))
-            .border(if (focused) 2.dp else 1.dp, if (focused) Gold else PanelLight, RoundedCornerShape(14.dp))
-            .onFocusChanged { focused = it.isFocused }
-            .focusable()
-            .padding(13.dp),
-        verticalArrangement = Arrangement.spacedBy(7.dp)
-    ) {
-        PosterArtwork(movie = movie, modifier = Modifier.fillMaxWidth().height(158.dp))
-        Text(movie.title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-        Text("${movie.year} • ${movie.genre}", color = Muted, fontSize = 11.sp)
-        Text("Starring: ${movie.leadActor}", color = Muted, fontSize = 10.sp, maxLines = 1)
-        Text("Director: ${movie.director}", color = Muted, fontSize = 10.sp, maxLines = 1)
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Button(onClick = { onSelect(movie) }, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 3.dp)) {
-                Text("Details", fontSize = 11.sp)
-            }
-            Button(
-                onClick = { onToggleSaved(movie.title) },
-                colors = ButtonDefaults.buttonColors(containerColor = PanelLight, contentColor = Color.White),
-                contentPadding = PaddingValues(horizontal = 9.dp, vertical = 3.dp)
-            ) { Text(if (saved) "Saved" else "+ List", fontSize = 11.sp) }
-        }
-    }
-}
-
-@Composable
-private fun MovieDetails(movie: DemoMovie, saved: Boolean, onBack: () -> Unit, onPlay: () -> Unit, onToggleSaved: () -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("MOVIE DETAILS", color = Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(26.dp),
-            verticalAlignment = Alignment.Top
-        ) {
-            PosterArtwork(movie = movie, modifier = Modifier.width(220.dp).height(310.dp))
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(13.dp)
-            ) {
-                Text(movie.title, color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold)
-                Text("${movie.language}  •  ${movie.year}  •  ${movie.genre}", color = Gold, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                Text(movie.description, color = Color.White, fontSize = 18.sp, lineHeight = 26.sp)
-                Text("CAST", color = Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
-                Text(movie.leadActor, color = Color.White, fontSize = 16.sp)
-                Text("DIRECTOR", color = Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
-                Text(movie.director, color = Color.White, fontSize = 16.sp)
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Button(onClick = onPlay) { Text("Open player") }
-                    Button(onClick = onToggleSaved) { Text(if (saved) "Remove from My List" else "Add to My List") }
-                    Button(onClick = onBack) { Text("Back") }
-                }
-                Text("The player is ready for Einthusan's approved stream source. No stream URL is configured yet.", color = Muted, fontSize = 12.sp)
-            }
-        }
-    }
-}
-
-@Composable
-private fun SignInPlaceholder() {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("SIGN IN", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
-        InfoPanel("Existing Einthusan account", "Sign-in is not connected yet. We need Einthusan's approved authentication flow before handling account credentials.")
-        Text("Please do not enter your password into this preview app.", color = Gold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-    }
-}
-
-@Composable
-private fun InfoPanel(title: String, message: String) {
-    Column(
-        modifier = Modifier.fillMaxWidth().background(Panel, RoundedCornerShape(13.dp)).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        Text(title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-        Text(message, color = Muted, fontSize = 12.sp, lineHeight = 18.sp)
-    }
+private fun SecondaryButton(label: String, onClick: () -> Unit, compact: Boolean = false) {
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(containerColor = SurfaceRaised, contentColor = Color.White, focusedContainerColor = Purple),
+        shape = RoundedCornerShape(9.dp),
+        contentPadding = PaddingValues(horizontal = if (compact) 9.dp else 15.dp, vertical = if (compact) 3.dp else 8.dp)
+    ) { Text(label, fontSize = if (compact) 10.sp else 12.sp, fontWeight = FontWeight.SemiBold) }
 }
