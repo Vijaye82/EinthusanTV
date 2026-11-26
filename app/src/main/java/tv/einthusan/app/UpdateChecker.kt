@@ -86,7 +86,7 @@ private fun findLatestUpdate(installedVersion: Long): AppUpdate? {
             val release = releases.getJSONObject(i)
             if (release.optBoolean("draft", false)) continue
             val tag = release.optString("tag_name")
-            val versionCode = Regex("preview-(\\\\d+)").find(tag)?.groupValues?.get(1)?.toLongOrNull() ?: continue
+            val versionCode = Regex("preview-(\\d+)").find(tag)?.groupValues?.get(1)?.toLongOrNull() ?: continue
             if (versionCode <= installedVersion) continue
             if (newestUpdate != null && versionCode <= newestUpdate.versionCode) continue
             val assets = release.optJSONArray("assets") ?: continue
