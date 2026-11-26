@@ -1,6 +1,11 @@
 package tv.einthusan.app
 
+import android.content.Intent
 import android.os.Bundle
+import java.io.File
+import java.io.PrintWriter
+import java.io.StringWriter
+import androidx.core.content.FileProvider
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -44,14 +49,63 @@ private data class CatalogMovie(
 private val catalogueMovies = emptyList<CatalogMovie>()
 
 class MainActivity : ComponentActivity() {
+    private val crashFile by lazy { File(filesDir, "startup-crash.txt") }
+
     override fun onResume() {
         super.onResume()
-        resumePendingApkInstall(this)
+        if (!crashFile.exists()) resumePendingApkInstall(this)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { EinthusanTvApp() }
+        val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, error ->
+            runCatching {
+                val details = StringWriter().also { writer ->
+                    error.printStackTrace(PrintWriter(writer))
+                }.toString()
+                crashFile.writeText("EinthusanTV startup diagnostic\\nThread: ${thread.name}\\n\\n${details.take(24000)}")
+            }
+            previousHandler?.uncaughtException(thread, error)
+        }
+
+        if (crashFile.exists()) {
+            val report = runCatching { crashFile.readText().take(24000) }.getOrDefault("A previous startup error was recorded, but the report could not be read.")
+            setContent { StartupDiagnosticScreen(report, onClear = { crashFile.delete(); recreate() }) }
+        } else {
+            setContent { EinthusanTvApp() }
+        }
+    }
+}
+
+@Composable
+private fun StartupDiagnosticScreen(report: String, onClear: () -> Unit) {
+    val context = LocalContext.current
+    MaterialTheme {
+        Surface(Modifier.fillMaxSize(), color = Background) {
+            Column(
+                Modifier.fillMaxSize().padding(28.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Text("EinthusanTV startup report", color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+                Text("The previous launch stopped unexpectedly. This report was saved on the Fire Stick.", color = TextMuted, fontSize = 14.sp)
+                Text(report, color = Color.White, fontSize = 12.sp, lineHeight = 17.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(onClick = {
+                        runCatching {
+                            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", File(context.filesDir, "startup-crash.txt"))
+                            val share = Intent(Intent.ACTION_SEND).setType("text/plain")
+                                .putExtra(Intent.EXTRA_STREAM, uri)
+                                .putExtra(Intent.EXTRA_TEXT, report)
+                                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            context.startActivity(Intent.createChooser(share, "Share startup report"))
+                        }
+                    }) { Text("Share report") }
+                    OutlinedButton(onClick = onClear) { Text("Clear report and retry") }
+                }
+                Text("If sharing is unavailable on your Fire Stick, take a photo of this screen and send it here.", color = TextMuted, fontSize = 12.sp)
+            }
+        }
     }
 }
 
