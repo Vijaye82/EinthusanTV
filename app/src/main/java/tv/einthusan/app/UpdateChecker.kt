@@ -8,6 +8,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.FileProvider
+import androidx.core.content.pm.PackageInfoCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -29,7 +30,7 @@ fun AppUpdateChecker() {
     LaunchedEffect(Unit) {
         update = runCatching {
             withContext(Dispatchers.IO) {
-                findLatestUpdate(context.packageManager.getPackageInfo(context.packageName, 0).longVersionCode)
+                findLatestUpdate(PackageInfoCompat.getLongVersionCode(context.packageManager.getPackageInfo(context.packageName, 0)))
             }
         }.getOrNull()
     }
