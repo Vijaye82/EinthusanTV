@@ -3,6 +3,11 @@ package tv.einthusan.app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.DisposableEffect
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
@@ -86,6 +91,7 @@ private fun EinthusanTvApp() {
     var actorQuery by remember { mutableStateOf("") }
     var directorQuery by remember { mutableStateOf("") }
     var selectedMovie by remember { mutableStateOf<DemoMovie?>(null) }
+    var playerOpen by remember { mutableStateOf(false) }
     var favourites by remember { mutableStateOf(setOf<String>()) }
 
     val visibleMovies = demoMovies.filter { movie ->
@@ -102,6 +108,9 @@ private fun EinthusanTvApp() {
 
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize(), color = Ink) {
+            if (playerOpen && selectedMovie != null) {
+                PlayerScreen(movie = selectedMovie!!, onBack = { playerOpen = false })
+            } else {
             Column(
                 modifier = Modifier.fillMaxSize().padding(start = 52.dp, end = 52.dp, top = 25.dp, bottom = 18.dp),
                 verticalArrangement = Arrangement.spacedBy(13.dp)
@@ -115,6 +124,7 @@ private fun EinthusanTvApp() {
                         NavButton(item, active = page == item, onClick = {
                             page = item
                             selectedMovie = null
+                            playerOpen = false
                         })
                         Spacer(Modifier.width(7.dp))
                     }
@@ -125,6 +135,7 @@ private fun EinthusanTvApp() {
                         movie = selectedMovie!!,
                         saved = favourites.contains(selectedMovie!!.title),
                         onBack = { selectedMovie = null },
+                        onPlay = { playerOpen = true },
                         onToggleSaved = {
                             val title = selectedMovie!!.title
                             favourites = if (title in favourites) favourites - title else favourites + title
@@ -218,6 +229,64 @@ private fun EinthusanTvApp() {
                 Spacer(Modifier.weight(1f, fill = false))
                 Text("DEVELOPMENT PREVIEW • SAMPLE CONTENT ONLY • OFFICIAL INTEGRATION PENDING", color = Muted, fontSize = 10.sp, letterSpacing = 1.sp)
             }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlayerScreen(movie: DemoMovie, onBack: () -> Unit) {
+    val context = LocalContext.current
+    val player = remember(context) {
+        ExoPlayer.Builder(context).build().apply {
+            playWhenReady = false
+        }
+    }
+
+    DisposableEffect(player) {
+        onDispose { player.release() }
+    }
+
+    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+        AndroidView(
+            factory = { viewContext ->
+                PlayerView(viewContext).apply {
+                    this.player = player
+                    useController = true
+                    controllerAutoShow = true
+                    keepScreenOn = true
+                    contentDescription = "Video player for ${movie.title}"
+                }
+            },
+            update = { it.player = player },
+            modifier = Modifier.fillMaxSize()
+        )
+        Row(
+            modifier = Modifier.align(Alignment.TopStart).fillMaxWidth()
+                .background(Color.Black.copy(alpha = 0.58f))
+                .padding(horizontal = 28.dp, vertical = 18.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Button(onClick = onBack) { Text("Back") }
+            Spacer(Modifier.width(18.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(movie.title, color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                Text("${movie.language} • ${movie.year}", color = Muted, fontSize = 12.sp)
+            }
+        }
+        Column(
+            modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth()
+                .background(Color.Black.copy(alpha = 0.72f))
+                .padding(horizontal = 28.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            Text("PLAYER PREVIEW — NO STREAM CONNECTED", color = Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+            Text(
+                "The Media3 player and remote-friendly controller are installed. Playback, seek bar, audio tracks and subtitles become active when Einthusan supplies an authorised stream and track metadata.",
+                color = Color.White,
+                fontSize = 12.sp,
+                lineHeight = 17.sp
+            )
         }
     }
 }
@@ -336,7 +405,7 @@ private fun MovieCard(movie: DemoMovie, saved: Boolean, onSelect: (DemoMovie) ->
 }
 
 @Composable
-private fun MovieDetails(movie: DemoMovie, saved: Boolean, onBack: () -> Unit, onToggleSaved: () -> Unit) {
+private fun MovieDetails(movie: DemoMovie, saved: Boolean, onBack: () -> Unit, onPlay: () -> Unit, onToggleSaved: () -> Unit) {
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("MOVIE DETAILS", color = Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
         Row(
@@ -357,10 +426,11 @@ private fun MovieDetails(movie: DemoMovie, saved: Boolean, onBack: () -> Unit, o
                 Text("DIRECTOR", color = Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
                 Text(movie.director, color = Color.White, fontSize = 16.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Button(onClick = onBack) { Text("Back to browsing") }
+                    Button(onClick = onPlay) { Text("Open player") }
                     Button(onClick = onToggleSaved) { Text(if (saved) "Remove from My List" else "Add to My List") }
+                    Button(onClick = onBack) { Text("Back") }
                 }
-                Text("Playback will be enabled after the official Einthusan integration is supplied.", color = Muted, fontSize = 12.sp)
+                Text("The player is ready for Einthusan's approved stream source. No stream URL is configured yet.", color = Muted, fontSize = 12.sp)
             }
         }
     }
