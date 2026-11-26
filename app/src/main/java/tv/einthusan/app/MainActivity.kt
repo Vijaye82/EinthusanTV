@@ -111,6 +111,7 @@ private fun StartupDiagnosticScreen(report: String, onClear: () -> Unit) {
 
 @Composable
 private fun EinthusanTvApp() {
+    val context = LocalContext.current
     val languages = listOf("All", "Tamil", "Telugu", "Hindi", "Malayalam", "Kannada", "Bengali", "Punjabi", "Marathi")
     val genres = listOf("All", "Action", "Drama", "Comedy", "Romance", "Thriller", "Family", "Adventure")
     var page by remember { mutableStateOf("HOME") }
@@ -123,7 +124,19 @@ private fun EinthusanTvApp() {
     var alphabetical by remember { mutableStateOf(false) }
     var selectedMovie by remember { mutableStateOf<CatalogMovie?>(null) }
     var playerOpen by remember { mutableStateOf(false) }
-    var favourites by remember { mutableStateOf(setOf<String>()) }
+    var favourites by remember {
+        mutableStateOf(
+            context.getSharedPreferences("user_preferences", android.content.Context.MODE_PRIVATE)
+                .getStringSet("favourites", emptySet())?.toSet() ?: emptySet()
+        )
+    }
+
+    LaunchedEffect(favourites) {
+        context.getSharedPreferences("user_preferences", android.content.Context.MODE_PRIVATE)
+            .edit()
+            .putStringSet("favourites", favourites.toSet())
+            .apply()
+    }
 
     BackHandler(enabled = page != "HOME" || selectedMovie != null || playerOpen) {
         when {
