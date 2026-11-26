@@ -18,8 +18,8 @@ jobs:
             echo "::error::Create the ANDROID_KEYSTORE_PASSWORD repository secret first, then run this workflow again."
             exit 1
           fi
-          if [ "${#SIGNING_PASSWORD}" -lt 16 ]; then
-            echo "::error::Use a strong password of at least 16 characters."
+          if [ "${#SIGNING_PASSWORD}" -lt 32 ]; then
+            echo "::error::Use a strong password of at least 32 characters."
             exit 1
           fi
 
