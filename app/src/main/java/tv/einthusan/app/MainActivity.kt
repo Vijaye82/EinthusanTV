@@ -9,6 +9,12 @@ import androidx.core.content.FileProvider
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
@@ -26,6 +32,8 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -112,6 +120,11 @@ private fun StartupDiagnosticScreen(report: String, onClear: () -> Unit) {
 @Composable
 private fun EinthusanTvApp() {
     val context = LocalContext.current
+    var showSplash by remember { mutableStateOf(true) }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(2400)
+        showSplash = false
+    }
     val languages = listOf("All", "Tamil", "Telugu", "Hindi", "Malayalam", "Kannada", "Bengali", "Punjabi", "Marathi")
     val genres = listOf("All", "Action", "Drama", "Comedy", "Romance", "Thriller", "Family", "Adventure")
     var page by remember { mutableStateOf("HOME") }
@@ -157,7 +170,10 @@ private fun EinthusanTvApp() {
 
     MaterialTheme {
         Surface(Modifier.fillMaxSize(), color = Background) {
-            AppUpdateChecker()
+            if (showSplash) {
+                EinthusanSplashScreen()
+            } else {
+                AppUpdateChecker()
             if (playerOpen && selectedMovie != null) {
                 PlayerScreen(selectedMovie!!, onBack = { playerOpen = false })
             } else {
@@ -211,6 +227,48 @@ private fun EinthusanTvApp() {
                             )
                         }
                     }
+                }
+            }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EinthusanSplashScreen() {
+    val pulse by rememberInfiniteTransition(label = "splash-pulse").animateFloat(
+        initialValue = 0.92f,
+        targetValue = 1.08f,
+        animationSpec = infiniteRepeatable(animation = tween(900), repeatMode = RepeatMode.Reverse),
+        label = "logo-pulse"
+    )
+    val glow by rememberInfiniteTransition(label = "splash-glow").animateFloat(
+        initialValue = 0.35f,
+        targetValue = 0.85f,
+        animationSpec = infiniteRepeatable(animation = tween(900), repeatMode = RepeatMode.Reverse),
+        label = "glow-alpha"
+    )
+    Box(
+        Modifier.fillMaxSize().background(Brush.radialGradient(listOf(Color(0xFF32105A), Background))),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
+            Box(contentAlignment = Alignment.Center) {
+                Box(Modifier.size(150.dp).background(Purple.copy(alpha = glow * 0.22f), RoundedCornerShape(38.dp)))
+                Image(
+                    painter = painterResource(id = R.drawable.ic_launcher),
+                    contentDescription = "EinthusanTV logo",
+                    modifier = Modifier.size(112.dp).graphicsLayer { scaleX = pulse; scaleY = pulse }
+                )
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Einthusan", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Black)
+                Text("TV", color = Magenta, fontSize = 34.sp, fontWeight = FontWeight.Black)
+            }
+            Text("YOUR CINEMA. YOUR SCREEN.", color = TextMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                repeat(3) { index ->
+                    Box(Modifier.size(7.dp).background(if (index == 1) Magenta else Purple.copy(alpha = 0.65f), RoundedCornerShape(50)))
                 }
             }
         }
