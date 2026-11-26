@@ -164,30 +164,6 @@ private fun TopNavigation(page: String, onNavigate: (String) -> Unit) {
     }
 }
 
-@Composable
-private fun HeroBanner(onPlay: () -> Unit, onDetails: () -> Unit) {
-    Box(
-        Modifier.fillMaxWidth().height(242.dp)
-            .background(Brush.horizontalGradient(listOf(Color(0xFF25152F), Color(0xFF512044), Color(0xFF171323))), RoundedCornerShape(20.dp))
-            .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(20.dp))
-            .padding(horizontal = 30.dp, vertical = 23.dp)
-    ) {
-        Column(Modifier.align(Alignment.CenterStart).width(440.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-            Text("FEATURED • TAMIL • 2024", color = Color(0xFFFFA9E5), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.8.sp)
-            Text("Monsoon Letters", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Black)
-            Text("Drama  •  HD concept", color = Color.White.copy(alpha = 0.82f), fontSize = 14.sp)
-            Text("A quiet family drama set across two generations.", color = TextMuted, fontSize = 14.sp)
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                PrimaryButton("▶  Play preview", onPlay)
-                SecondaryButton("More info", onDetails)
-            }
-        }
-        Column(Modifier.align(Alignment.CenterEnd).padding(end = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("ET", color = Color.White.copy(alpha = 0.12f), fontSize = 92.sp, fontWeight = FontWeight.Black)
-            Text("EINTHUSAN TV", color = Color.White.copy(alpha = 0.55f), fontSize = 9.sp, letterSpacing = 2.sp)
-        }
-    }
-}
 
 @Composable
 private fun SearchPage(
