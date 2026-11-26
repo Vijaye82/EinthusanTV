@@ -2,6 +2,7 @@ package tv.einthusan.app
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -70,6 +71,14 @@ private fun EinthusanTvApp() {
     var selectedMovie by remember { mutableStateOf<DemoMovie?>(null) }
     var playerOpen by remember { mutableStateOf(false) }
     var favourites by remember { mutableStateOf(setOf<String>()) }
+
+    BackHandler(enabled = page != "HOME" || selectedMovie != null || playerOpen) {
+        when {
+            playerOpen -> playerOpen = false
+            selectedMovie != null -> selectedMovie = null
+            page != "HOME" -> page = "HOME"
+        }
+    }
 
     val filtered = demoMovies.filter { movie ->
         (language == "All" || movie.language == language) &&
