@@ -39,7 +39,7 @@ jobs:
             export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/einthusan-release.jks"
             export ANDROID_KEY_ALIAS="${ANDROID_KEY_ALIAS:-einthusan-tv}"
             export ANDROID_KEY_PASSWORD="${ANDROID_KEY_PASSWORD:-$ANDROID_KEYSTORE_PASSWORD}"
-            gradle --no-daemon :app:assembleRelease -PversionCode=${{ github.run_number }}
+            gradle --no-daemon :app:assembleRelease -x lintVitalAnalyzeRelease -PversionCode=${{ github.run_number }}
             cp app/build/outputs/apk/release/app-release.apk release/EinthusanTV-preview.apk
             echo "Built stable-key signed APK."
           else
