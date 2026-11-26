@@ -27,9 +27,11 @@ fun AppUpdateChecker() {
     var downloading by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        update = withContext(Dispatchers.IO) {
-            findLatestUpdate(context.packageManager.getPackageInfo(context.packageName, 0).longVersionCode)
-        }
+        update = runCatching {
+            withContext(Dispatchers.IO) {
+                findLatestUpdate(context.packageManager.getPackageInfo(context.packageName, 0).longVersionCode)
+            }
+        }.getOrNull()
     }
 
     update?.let { available ->
