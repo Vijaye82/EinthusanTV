@@ -51,16 +51,17 @@ private data class DemoMovie(
     val year: String,
     val genre: String,
     val leadActor: String,
+    val director: String,
     val description: String
 )
 
 // Fictional sample entries and cast names: replace with Einthusan-approved catalogue data.
 private val demoMovies = listOf(
-    DemoMovie("Monsoon Letters", "Tamil", "2024", "Drama", "Arun Dev", "A quiet family drama set across two generations."),
-    DemoMovie("The Last Mango Tree", "Telugu", "2023", "Drama", "Meera Rao", "A village comes together to save its oldest orchard."),
-    DemoMovie("Midnight Expressway", "Hindi", "2024", "Thriller", "Kabir Sen", "A late-night journey takes an unexpected turn."),
-    DemoMovie("Coastal Stories", "Malayalam", "2022", "Family", "Anjali Nair", "Four neighbours discover what home means to them."),
-    DemoMovie("The Blue Kite", "Kannada", "2023", "Adventure", "Ravi Kumar", "A young inventor follows a mysterious map.")
+    DemoMovie("Monsoon Letters", "Tamil", "2024", "Drama", "Arun Dev", "Leela Raman", "A quiet family drama set across two generations."),
+    DemoMovie("The Last Mango Tree", "Telugu", "2023", "Drama", "Meera Rao", "Kiran Varma", "A village comes together to save its oldest orchard."),
+    DemoMovie("Midnight Expressway", "Hindi", "2024", "Thriller", "Kabir Sen", "Nisha Kapoor", "A late-night journey takes an unexpected turn."),
+    DemoMovie("Coastal Stories", "Malayalam", "2022", "Family", "Anjali Nair", "Thomas Mathew", "Four neighbours discover what home means to them."),
+    DemoMovie("The Blue Kite", "Kannada", "2023", "Adventure", "Ravi Kumar", "Sanjay Rao", "A young inventor follows a mysterious map.")
 )
 
 class MainActivity : ComponentActivity() {
@@ -74,22 +75,26 @@ class MainActivity : ComponentActivity() {
 private fun EinthusanTvApp() {
     val languages = listOf("All", "Tamil", "Telugu", "Hindi", "Malayalam", "Kannada", "Bengali", "Punjabi", "Marathi")
     val years = listOf("All", "2024", "2023", "2022")
+    val genres = listOf("All", "Drama", "Thriller", "Family", "Adventure")
     var selectedLanguage by remember { mutableStateOf("All") }
     var selectedYear by remember { mutableStateOf("All") }
+    var selectedGenre by remember { mutableStateOf("All") }
     var alphabetical by remember { mutableStateOf(false) }
     var page by remember { mutableStateOf("HOME") }
     var query by remember { mutableStateOf("") }
     var actorQuery by remember { mutableStateOf("") }
+    var directorQuery by remember { mutableStateOf("") }
     var selectedMovie by remember { mutableStateOf<DemoMovie?>(null) }
     var favourites by remember { mutableStateOf(setOf<String>()) }
 
     val visibleMovies = demoMovies.filter { movie ->
         (selectedLanguage == "All" || movie.language == selectedLanguage) &&
             (selectedYear == "All" || movie.year == selectedYear) &&
+            (selectedGenre == "All" || movie.genre.equals(selectedGenre, ignoreCase = true)) &&
             (query.isBlank() || movie.title.contains(query, ignoreCase = true) ||
-                movie.genre.contains(query, ignoreCase = true) ||
                 movie.language.contains(query, ignoreCase = true)) &&
-            (actorQuery.isBlank() || movie.leadActor.contains(actorQuery, ignoreCase = true))
+            (actorQuery.isBlank() || movie.leadActor.contains(actorQuery, ignoreCase = true)) &&
+            (directorQuery.isBlank() || movie.director.contains(directorQuery, ignoreCase = true))
     }.let { movies ->
         if (alphabetical) movies.sortedBy { it.title.lowercase() } else movies
     }
@@ -132,7 +137,7 @@ private fun EinthusanTvApp() {
                                 OutlinedTextField(
                                     value = query,
                                     onValueChange = { query = it },
-                                    label = { Text("Title, language or genre") },
+                                    label = { Text("Movie title or language") },
                                     singleLine = true,
                                     modifier = Modifier.weight(1f)
                                 )
@@ -143,6 +148,23 @@ private fun EinthusanTvApp() {
                                     singleLine = true,
                                     modifier = Modifier.weight(1f)
                                 )
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                OutlinedTextField(
+                                    value = directorQuery,
+                                    onValueChange = { directorQuery = it },
+                                    label = { Text("Director") },
+                                    singleLine = true,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text("GENRE", color = Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        items(genres) { genre ->
+                                            TvChoice(genre, selectedGenre == genre) { selectedGenre = genre }
+                                        }
+                                    }
+                                }
                             }
                             Text("FILTER BY YEAR", color = Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -264,6 +286,7 @@ private fun MovieCard(movie: DemoMovie, saved: Boolean, onSelect: (DemoMovie) ->
         Text(movie.title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1)
         Text("${movie.year} • ${movie.genre}", color = Muted, fontSize = 11.sp)
         Text("Starring: ${movie.leadActor}", color = Muted, fontSize = 10.sp, maxLines = 1)
+        Text("Director: ${movie.director}", color = Muted, fontSize = 10.sp, maxLines = 1)
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Button(onClick = { onSelect(movie) }, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 3.dp)) {
                 Text("Details", fontSize = 11.sp)
@@ -284,6 +307,7 @@ private fun MovieDetails(movie: DemoMovie, saved: Boolean, onBack: () -> Unit, o
         Text(movie.title, color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold)
         Text("${movie.language} • ${movie.year} • ${movie.genre}", color = Muted, fontSize = 15.sp)
         Text("Starring: ${movie.leadActor}", color = Gold, fontSize = 15.sp)
+        Text("Directed by: ${movie.director}", color = Muted, fontSize = 14.sp)
         Text(movie.description, color = Color.White, fontSize = 17.sp)
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(onClick = onBack) { Text("Back to browsing") }
