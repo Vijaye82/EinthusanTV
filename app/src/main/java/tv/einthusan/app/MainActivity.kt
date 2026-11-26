@@ -207,7 +207,7 @@ private fun SearchPage(
         Text("Year", color = TextMuted, fontSize = 12.sp)
         FilterChips(listOf("All", "2024", "2023", "2022"), year, onYear)
         Spacer(Modifier.width(15.dp))
-        SecondaryButton(if (alphabetical) "A–Z ✓" else "Sort A–Z") { onAlphabetical(!alphabetical) }
+        SecondaryButton(if (alphabetical) "A–Z ✓" else "Sort A–Z", onClick = { onAlphabetical(!alphabetical) })
         Text("${movies.size} sample results", color = TextMuted, fontSize = 12.sp)
     }
     MovieShelf(movies, favourites, onSelect, onToggleSaved)
@@ -367,8 +367,7 @@ private fun NavButton(label: String, active: Boolean, onClick: () -> Unit) {
         onClick = onClick,
         colors = ButtonDefaults.buttonColors(
             containerColor = if (active) Purple else Color.Transparent,
-            contentColor = if (active) Color.White else TextMuted,
-            focusedContainerColor = Magenta, focusedContentColor = Color.White
+            contentColor = if (active) Color.White else TextMuted
         ),
         shape = RoundedCornerShape(22.dp),
         contentPadding = PaddingValues(horizontal = 13.dp, vertical = 7.dp)
@@ -391,7 +390,7 @@ private fun ChoiceChip(label: String, active: Boolean, onClick: () -> Unit) {
 private fun PrimaryButton(label: String, onClick: () -> Unit, compact: Boolean = false) {
     Button(
         onClick = onClick,
-        colors = ButtonDefaults.buttonColors(containerColor = Magenta, contentColor = Color.White, focusedContainerColor = Purple),
+        colors = ButtonDefaults.buttonColors(containerColor = Magenta, contentColor = Color.White),
         shape = RoundedCornerShape(9.dp),
         contentPadding = PaddingValues(horizontal = if (compact) 9.dp else 17.dp, vertical = if (compact) 3.dp else 8.dp)
     ) { Text(label, fontSize = if (compact) 10.sp else 12.sp, fontWeight = FontWeight.Bold) }
