@@ -3,7 +3,7 @@ package tv.einthusan.app
 import org.jsoup.Jsoup
 
 /** Loads public Einthusan catalogue cards only; login and playback are separate stages. */
-class EinthusanCatalogRepository(private val baseUrl: String = "https://einthusan.tv") {
+internal class EinthusanCatalogRepository(private val baseUrl: String = "https://einthusan.tv") {
     fun featured(language: String): List<CatalogMovie> {
         val document = Jsoup.connect("$baseUrl/movie/browse/?lang=$language")
             .userAgent("Mozilla/5.0 (Linux; Android 10; Android TV) AppleWebKit/537.36 Chrome/120.0 Safari/537.36")
