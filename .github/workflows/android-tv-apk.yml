@@ -28,15 +28,17 @@ jobs:
 
       - name: Build APK
         env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_ENCRYPTED_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           mkdir -p release
-          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
-            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/einthusan-release.jks"
+          if [ -n "$ANDROID_KEYSTORE_ENCRYPTED_BASE64" ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ]; then
+            printf '%s' "$ANDROID_KEYSTORE_ENCRYPTED_BASE64" | base64 --decode | openssl enc -d -aes-256-cbc -pbkdf2 -pass env:ANDROID_KEYSTORE_PASSWORD -out "$RUNNER_TEMP/einthusan-release.jks"
             export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/einthusan-release.jks"
+            export ANDROID_KEY_ALIAS="${ANDROID_KEY_ALIAS:-einthusan-tv}"
+            export ANDROID_KEY_PASSWORD="${ANDROID_KEY_PASSWORD:-$ANDROID_KEYSTORE_PASSWORD}"
             gradle --no-daemon :app:assembleRelease -PversionCode=${{ github.run_number }}
             cp app/build/outputs/apk/release/app-release.apk release/EinthusanTV-preview.apk
             echo "Built stable-key signed APK."
