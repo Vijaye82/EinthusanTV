@@ -72,7 +72,7 @@ fun AppUpdateChecker() {
 }
 
 private fun findLatestUpdate(installedVersion: Long): AppUpdate? {
-    val connection = (URL("https://api.github.com/repos/Vijaye82/EinthusanTV/releases?per_page=1").openConnection() as HttpURLConnection).apply {
+    val connection = (URL("https://api.github.com/repos/Vijaye82/EinthusanTV/releases?per_page=100").openConnection() as HttpURLConnection).apply {
         connectTimeout = 12000
         readTimeout = 12000
         setRequestProperty("Accept", "application/vnd.github+json")
@@ -81,19 +81,27 @@ private fun findLatestUpdate(installedVersion: Long): AppUpdate? {
     try {
         if (connection.responseCode !in 200..299) return null
         val releases = JSONArray(connection.inputStream.bufferedReader().use { it.readText() })
-        if (releases.length() == 0) return null
-        val release = releases.getJSONObject(0)
-        val tag = release.optString("tag_name")
-        val versionCode = Regex("preview-(\\d+)").find(tag)?.groupValues?.get(1)?.toLongOrNull() ?: return null
-        if (versionCode <= installedVersion) return null
-        val assets = release.optJSONArray("assets") ?: return null
-        for (i in 0 until assets.length()) {
-            val asset = assets.getJSONObject(i)
-            if (asset.optString("name") == "EinthusanTV-preview.apk") {
-                return AppUpdate(versionCode, "0.1.$versionCode", asset.optString("browser_download_url"))
+        var newestUpdate: AppUpdate? = null
+        for (i in 0 until releases.length()) {
+            val release = releases.getJSONObject(i)
+            if (release.optBoolean("draft", false)) continue
+            val tag = release.optString("tag_name")
+            val versionCode = Regex("preview-(\\\\d+)").find(tag)?.groupValues?.get(1)?.toLongOrNull() ?: continue
+            if (versionCode <= installedVersion) continue
+            if (newestUpdate != null && versionCode <= newestUpdate.versionCode) continue
+            val assets = release.optJSONArray("assets") ?: continue
+            for (assetIndex in 0 until assets.length()) {
+                val asset = assets.getJSONObject(assetIndex)
+                if (asset.optString("name") == "EinthusanTV-preview.apk") {
+                    val apkUrl = asset.optString("browser_download_url")
+                    if (apkUrl.startsWith("https://github.com/")) {
+                        newestUpdate = AppUpdate(versionCode, "0.1.$versionCode", apkUrl)
+                    }
+                    break
+                }
             }
         }
-        return null
+        return newestUpdate
     } finally {
         connection.disconnect()
     }
