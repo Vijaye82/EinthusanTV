@@ -1,0 +1,48 @@
+name: Generate Android signing key
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check signing password is configured
+        env:
+          SIGNING_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$SIGNING_PASSWORD" ]; then
+            echo "::error::Create the ANDROID_KEYSTORE_PASSWORD repository secret first, then run this workflow again."
+            exit 1
+          fi
+          if [ "${#SIGNING_PASSWORD}" -lt 16 ]; then
+            echo "::error::Use a strong password of at least 16 characters."
+            exit 1
+          fi
+
+      - name: Generate and encrypt permanent Android keystore
+        env:
+          SIGNING_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set +x
+          keytool -genkeypair -noprompt -v \
+            -keystore "$RUNNER_TEMP/einthusan-tv-release.jks" \
+            -storetype JKS \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -alias einthusan-tv \
+            -dname "CN=Einthusan TV, OU=Android, O=Einthusan TV, L=Unknown, ST=Unknown, C=GB" \
+            -storepass "$SIGNING_PASSWORD" -keypass "$SIGNING_PASSWORD"
+          echo "KEYSTORE_CIPHERTEXT_BEGIN"
+          openssl enc -aes-256-cbc -salt -pbkdf2 \
+            -in "$RUNNER_TEMP/einthusan-tv-release.jks" \
+            -pass env:SIGNING_PASSWORD | base64 -w 0
+          echo
+          echo "KEYSTORE_CIPHERTEXT_END"
+          rm -f "$RUNNER_TEMP/einthusan-tv-release.jks"
+
+      - name: Cleanup
+        if: always()
+        run: rm -f "$RUNNER_TEMP/einthusan-tv-release.jks"
