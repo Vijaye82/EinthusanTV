@@ -1,8 +1,6 @@
 package tv.einthusan.app
 
 import android.os.Bundle
-import android.content.Intent
-import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -37,19 +35,13 @@ private val Purple = Color(0xFF9226D6)
 private val Magenta = Color(0xFFE00091)
 private val TextMuted = Color(0xFFBDB5C9)
 
-private data class DemoMovie(
+private data class CatalogMovie(
     val title: String, val language: String, val year: String, val genre: String,
     val leadActor: String, val director: String, val description: String
 )
 
-// Fictional development entries only. Replace with catalogue data supplied by Einthusan.
-private val demoMovies = listOf(
-    DemoMovie("Monsoon Letters", "Tamil", "2024", "Drama", "Arun Dev", "Leela Raman", "A quiet family drama set across two generations."),
-    DemoMovie("The Last Mango Tree", "Telugu", "2023", "Drama", "Meera Rao", "Kiran Varma", "A village comes together to save its oldest orchard."),
-    DemoMovie("Midnight Expressway", "Hindi", "2024", "Thriller", "Kabir Sen", "Nisha Kapoor", "A late-night journey takes an unexpected turn."),
-    DemoMovie("Coastal Stories", "Malayalam", "2022", "Family", "Anjali Nair", "Thomas Mathew", "Four neighbours discover what home means to them."),
-    DemoMovie("The Blue Kite", "Kannada", "2023", "Adventure", "Ravi Kumar", "Sanjay Rao", "A young inventor follows a mysterious map.")
-)
+// The catalogue starts empty and will be populated through an approved Einthusan integration.
+private val catalogueMovies = emptyList<CatalogMovie>()
 
 class MainActivity : ComponentActivity() {
     override fun onResume() {
@@ -65,7 +57,6 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun EinthusanTvApp() {
-    val context = LocalContext.current
     val languages = listOf("All", "Tamil", "Telugu", "Hindi", "Malayalam", "Kannada", "Bengali", "Punjabi", "Marathi")
     val genres = listOf("All", "Action", "Drama", "Comedy", "Romance", "Thriller", "Family", "Adventure")
     var page by remember { mutableStateOf("HOME") }
@@ -76,7 +67,7 @@ private fun EinthusanTvApp() {
     var actor by remember { mutableStateOf("") }
     var director by remember { mutableStateOf("") }
     var alphabetical by remember { mutableStateOf(false) }
-    var selectedMovie by remember { mutableStateOf<DemoMovie?>(null) }
+    var selectedMovie by remember { mutableStateOf<CatalogMovie?>(null) }
     var playerOpen by remember { mutableStateOf(false) }
     var favourites by remember { mutableStateOf(setOf<String>()) }
 
@@ -88,7 +79,7 @@ private fun EinthusanTvApp() {
         }
     }
 
-    val filtered = demoMovies.filter { movie ->
+    val filtered = catalogueMovies.filter { movie ->
         (language == "All" || movie.language == language) &&
             (genre == "All" || movie.genre.equals(genre, true)) &&
             (year == "All" || movie.year == year) &&
@@ -108,13 +99,9 @@ private fun EinthusanTvApp() {
                     verticalArrangement = Arrangement.spacedBy(15.dp)
                 ) {
                     TopNavigation(page) { destination ->
-                        if (destination == "WEBSITE") {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://einthusan.tv/")))
-                        } else {
-                            page = destination
-                            selectedMovie = null
-                            playerOpen = false
-                        }
+                        page = destination
+                        selectedMovie = null
+                        playerOpen = false
                     }
                     if (selectedMovie != null) {
                         MovieDetails(
@@ -134,35 +121,27 @@ private fun EinthusanTvApp() {
                             { title -> favourites = if (title in favourites) favourites - title else favourites + title }
                         )
                         "MY LIST" -> {
-                            PageHeading("My List", "Your saved films, ready when you are")
-                            val saved = demoMovies.filter { it.title in favourites }
+                            PageHeading("My List", "Your saved Einthusan films")
+                            val saved = catalogueMovies.filter { it.title in favourites }
                             if (saved.isEmpty()) EmptyState("Your list is empty", "Open a title and choose + My List to save it here.")
                             else MovieShelf(saved, favourites, { selectedMovie = it }, { title -> favourites = favourites - title })
                         }
                         "SIGN IN" -> SignInPage()
                         "MOVIES" -> {
-                            PageHeading("Explore Movies", "Browse the development collection")
+                            PageHeading("Explore Movies", "Einthusan movie catalogue")
                             FilterChips(languages, language) { language = it }
                             MovieShelf(filtered, favourites, { selectedMovie = it }, { title ->
                                 favourites = if (title in favourites) favourites - title else favourites + title
                             })
                         }
                         else -> {
-                            HeroBanner(
-                                onPlay = { selectedMovie = demoMovies.first(); playerOpen = true },
-                                onDetails = { selectedMovie = demoMovies.first() }
-                            )
+                            PageHeading("Welcome to EinthusanTV", "Your Einthusan catalogue will appear here")
                             Text("Browse by language", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                             FilterChips(languages, language) { language = it }
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("New releases", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                                Spacer(Modifier.weight(1f))
-                                Text("DEVELOPMENT SAMPLE", color = TextMuted, fontSize = 10.sp, letterSpacing = 1.2.sp)
-                            }
-                            MovieShelf(filtered, favourites, { selectedMovie = it }, { title ->
-                                favourites = if (title in favourites) favourites - title else favourites + title
-                            })
-                            Text("Illustrative titles and artwork only • Einthusan catalogue integration pending", color = TextMuted, fontSize = 10.sp)
+                            EmptyState(
+                                "Catalogue connection pending",
+                                "No sample films or placeholder posters are shown. Real Einthusan titles, artwork and details will appear here when an approved catalogue connection is available."
+                            )
                         }
                     }
                 }
@@ -179,7 +158,7 @@ private fun TopNavigation(page: String, onNavigate: (String) -> Unit) {
             Text("TV", color = Magenta, fontSize = 25.sp, fontWeight = FontWeight.Black)
         }
         Spacer(Modifier.weight(1f))
-        listOf("HOME", "MOVIES", "SEARCH", "MY LIST", "SIGN IN", "WEBSITE").forEach { item ->
+        listOf("HOME", "MOVIES", "SEARCH", "MY LIST", "SIGN IN").forEach { item ->
             NavButton(item, page == item) { onNavigate(item) }
         }
     }
@@ -215,7 +194,7 @@ private fun SearchPage(
     query: String, onQuery: (String) -> Unit, actor: String, onActor: (String) -> Unit,
     director: String, onDirector: (String) -> Unit, genre: String, onGenre: (String) -> Unit,
     year: String, onYear: (String) -> Unit, alphabetical: Boolean, onAlphabetical: (Boolean) -> Unit,
-    movies: List<DemoMovie>, favourites: Set<String>, onSelect: (DemoMovie) -> Unit, onToggleSaved: (String) -> Unit
+    movies: List<CatalogMovie>, favourites: Set<String>, onSelect: (CatalogMovie) -> Unit, onToggleSaved: (String) -> Unit
 ) {
     PageHeading("Search", "Find films by title, cast, director or genre")
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -230,7 +209,7 @@ private fun SearchPage(
         FilterChips(listOf("All", "2024", "2023", "2022"), year, onYear)
         Spacer(Modifier.width(15.dp))
         SecondaryButton(if (alphabetical) "A–Z ✓" else "Sort A–Z", onClick = { onAlphabetical(!alphabetical) })
-        Text("${movies.size} sample results", color = TextMuted, fontSize = 12.sp)
+        Text("${movies.size} catalogue results", color = TextMuted, fontSize = 12.sp)
     }
     MovieShelf(movies, favourites, onSelect, onToggleSaved)
 }
@@ -260,8 +239,8 @@ private fun FilterChips(options: List<String>, selected: String, onSelect: (Stri
 }
 
 @Composable
-private fun MovieShelf(movies: List<DemoMovie>, favourites: Set<String>, onSelect: (DemoMovie) -> Unit, onToggleSaved: (String) -> Unit) {
-    if (movies.isEmpty()) EmptyState("No titles found", "Try changing your filters.")
+private fun MovieShelf(movies: List<CatalogMovie>, favourites: Set<String>, onSelect: (CatalogMovie) -> Unit, onToggleSaved: (String) -> Unit) {
+    if (movies.isEmpty()) EmptyState("No catalogue titles yet", "The real Einthusan catalogue will appear here once connected.")
     else LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(vertical = 7.dp)) {
         items(movies) { movie ->
             MovieCard(movie, movie.title in favourites, { onSelect(movie) }, { onToggleSaved(movie.title) })
@@ -270,7 +249,7 @@ private fun MovieShelf(movies: List<DemoMovie>, favourites: Set<String>, onSelec
 }
 
 @Composable
-private fun MovieCard(movie: DemoMovie, saved: Boolean, onSelect: () -> Unit, onToggleSaved: () -> Unit) {
+private fun MovieCard(movie: CatalogMovie, saved: Boolean, onSelect: () -> Unit, onToggleSaved: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     Column(
         Modifier.width(184.dp).background(SurfaceDark, RoundedCornerShape(13.dp))
@@ -289,7 +268,7 @@ private fun MovieCard(movie: DemoMovie, saved: Boolean, onSelect: () -> Unit, on
 }
 
 @Composable
-private fun PosterArtwork(movie: DemoMovie, modifier: Modifier = Modifier) {
+private fun PosterArtwork(movie: CatalogMovie, modifier: Modifier = Modifier) {
     val colors = when (movie.genre.lowercase()) {
         "thriller" -> listOf(Color(0xFF25152F), Color(0xFF8C315A))
         "family" -> listOf(Color(0xFF174B4B), Color(0xFF96633D))
@@ -304,11 +283,11 @@ private fun PosterArtwork(movie: DemoMovie, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun MovieDetails(movie: DemoMovie, saved: Boolean, onBack: () -> Unit, onPlay: () -> Unit, onToggleSaved: () -> Unit) {
+private fun MovieDetails(movie: CatalogMovie, saved: Boolean, onBack: () -> Unit, onPlay: () -> Unit, onToggleSaved: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(top = 18.dp), horizontalArrangement = Arrangement.spacedBy(28.dp), verticalAlignment = Alignment.Top) {
         PosterArtwork(movie, Modifier.width(245.dp).height(340.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(13.dp)) {
-            Text("MOVIE DETAILS  •  DEVELOPMENT SAMPLE", color = Color(0xFFFFA9E5), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+            Text("MOVIE DETAILS", color = Color(0xFFFFA9E5), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
             Text(movie.title, color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold)
             Text("${movie.language}  •  ${movie.year}  •  ${movie.genre}", color = Color(0xFFFFA9E5), fontSize = 15.sp)
             Text(movie.description, color = TextMuted, fontSize = 17.sp, lineHeight = 25.sp)
@@ -349,7 +328,7 @@ private fun EmptyState(title: String, message: String) {
 }
 
 @Composable
-private fun PlayerScreen(movie: DemoMovie, onBack: () -> Unit) {
+private fun PlayerScreen(movie: CatalogMovie, onBack: () -> Unit) {
     val context = LocalContext.current
     val player = remember(context) { ExoPlayer.Builder(context).build().apply { playWhenReady = false } }
     DisposableEffect(player) { onDispose { player.release() } }
@@ -376,7 +355,7 @@ private fun PlayerScreen(movie: DemoMovie, onBack: () -> Unit) {
             Text(movie.title, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         }
         Text(
-            "PLAYER PREVIEW • NO STREAM CONNECTED",
+            "PLAYBACK CONNECTION PENDING",
             Modifier.align(Alignment.BottomStart).fillMaxWidth().background(Color(0xCC10091A)).padding(16.dp),
             color = Color(0xFFFFA9E5), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp
         )
