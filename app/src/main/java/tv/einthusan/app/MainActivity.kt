@@ -380,7 +380,6 @@ private fun ChoiceChip(label: String, active: Boolean, onClick: () -> Unit) {
         onClick = onClick, modifier = Modifier.height(39.dp), shape = RoundedCornerShape(10.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = if (active) Purple else SurfaceRaised, contentColor = Color.White,
-            focusedContainerColor = Magenta, focusedContentColor = Color.White
         ),
         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 5.dp)
     ) { Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold) }
@@ -400,7 +399,7 @@ private fun PrimaryButton(label: String, onClick: () -> Unit, compact: Boolean =
 private fun SecondaryButton(label: String, onClick: () -> Unit, compact: Boolean = false) {
     Button(
         onClick = onClick,
-        colors = ButtonDefaults.buttonColors(containerColor = SurfaceRaised, contentColor = Color.White, focusedContainerColor = Purple),
+        colors = ButtonDefaults.buttonColors(containerColor = SurfaceRaised, contentColor = Color.White),
         shape = RoundedCornerShape(9.dp),
         contentPadding = PaddingValues(horizontal = if (compact) 9.dp else 15.dp, vertical = if (compact) 3.dp else 8.dp)
     ) { Text(label, fontSize = if (compact) 10.sp else 12.sp, fontWeight = FontWeight.SemiBold) }
