@@ -36,6 +36,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -59,7 +60,7 @@ private val TextMuted = Color(0xFFBDB5C9)
 internal data class CatalogMovie(
     val title: String, val language: String, val year: String, val genre: String,
     val leadActor: String, val director: String, val description: String,
-    val id: String = title, val posterUrl: String = ""
+    val id: String = title, val posterUrl: String = "", val backdropUrl: String = ""
 )
 
 // Live catalogue data is loaded by EinthusanCatalogRepository.
@@ -279,6 +280,19 @@ private fun EinthusanTvApp() {
     }
 }
 
+
+@Composable
+private fun ArtworkImage(url: String, contentDescription: String?, contentScale: ContentScale, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val request = remember(url) {
+        ImageRequest.Builder(context).data(url)
+            .addHeader("Referer", "https://einthusan.tv/")
+            .addHeader("User-Agent", "Mozilla/5.0 (Linux; Android 10; Android TV) AppleWebKit/537.36 Chrome/120.0 Safari/537.36")
+            .crossfade(true).build()
+    }
+    AsyncImage(model = request, contentDescription = contentDescription, contentScale = contentScale, modifier = modifier)
+}
+
 @Composable
 private fun EinthusanSplashScreen() {
     val pulse by rememberInfiniteTransition(label = "splash-pulse").animateFloat(
@@ -344,8 +358,9 @@ private fun HomeShowcase(
     Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
         if (featured != null) {
             Box(Modifier.fillMaxWidth().height(260.dp).background(SurfaceDark, RoundedCornerShape(18.dp))) {
-                if (featured.posterUrl.isNotBlank()) AsyncImage(
-                    model = featured.posterUrl, contentDescription = featured.title,
+                val heroImage = featured.backdropUrl.ifBlank { featured.posterUrl }
+                if (heroImage.isNotBlank()) ArtworkImage(
+                    url = heroImage, contentDescription = featured.title,
                     contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()
                 )
                 Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Background.copy(alpha = 0.98f), Background.copy(alpha = 0.78f), Color.Transparent))))
@@ -462,7 +477,7 @@ private fun PosterArtwork(movie: CatalogMovie, modifier: Modifier = Modifier) {
         else -> listOf(Color(0xFF55234F), Color(0xFFB45A73))
     }
     Box(modifier.background(Brush.linearGradient(colors), RoundedCornerShape(10.dp))) {
-        if (movie.posterUrl.isNotBlank()) AsyncImage(model = movie.posterUrl, contentDescription = movie.title, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        if (movie.posterUrl.isNotBlank()) ArtworkImage(movie.posterUrl, movie.title, ContentScale.Crop, Modifier.fillMaxSize())
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xCC090711)))).padding(10.dp)) {
             Text(movie.language.uppercase(), Modifier.align(Alignment.TopStart), color = Color.White.copy(alpha = 0.95f), fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
             Text(movie.title.uppercase(), Modifier.align(Alignment.Center), color = Color.White, fontSize = 17.sp, lineHeight = 19.sp, fontWeight = FontWeight.Black)
@@ -476,11 +491,7 @@ private fun PosterArtwork(movie: CatalogMovie, modifier: Modifier = Modifier) {
 private fun MovieDetails(movie: CatalogMovie, saved: Boolean, onBack: () -> Unit, onPlay: () -> Unit, onToggleSaved: () -> Unit) {
     Box(Modifier.fillMaxWidth().height(440.dp).padding(top = 10.dp)) {
         if (movie.posterUrl.isNotBlank()) {
-            AsyncImage(
-                model = movie.posterUrl, contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
+            ArtworkImage(movie.backdropUrl.ifBlank { movie.posterUrl }, null, ContentScale.Crop, Modifier.fillMaxSize())
         }
         Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Background.copy(alpha = 0.98f), Background.copy(alpha = 0.82f), Color.Transparent))))
         Column(
