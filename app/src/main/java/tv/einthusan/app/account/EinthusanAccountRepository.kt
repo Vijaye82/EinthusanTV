@@ -219,7 +219,10 @@ class EinthusanAccountRepository(
                     append(URLEncoder.encode(safeLanguage, "UTF-8"))
                     if (quality == PlaybackRequest.Quality.UHD) append("&uhd=true")
                 }
-                val response = request("POST", ajaxPath, "$baseUrl$watchPath", form)
+                // Match Einthusan's player handshake: the AJAX ping is referred from the
+                // language browse page, not from the watch URL itself.
+                val browseReferer = "$baseUrl/movie/browse/?lang=$safeLanguage"
+                val response = request("POST", ajaxPath, browseReferer, form)
                 val responseJson = runCatching { JSONObject(response) }.getOrNull()
                     ?: return@withContext PlaybackResult.Unavailable("Einthusan returned an unexpected playback response: " + response.take(180))
                 val data = responseJson.optJSONObject("Data")
