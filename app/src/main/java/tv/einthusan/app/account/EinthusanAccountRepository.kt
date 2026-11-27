@@ -8,7 +8,7 @@ import java.net.CookiePolicy
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
-import java.util.Base64
+import android.util.Base64
 import tv.einthusan.app.playback.PlaybackRequest
 import tv.einthusan.app.playback.PlaybackResult
 import tv.einthusan.app.playback.PlaybackSource
@@ -140,7 +140,8 @@ class EinthusanAccountRepository(
                 // Match the public Kodi integration's EJLinks envelope decoding; the decoded URL
                 // is still issued by Einthusan after its own watch-page and entitlement checks.
                 val decodedEnvelope = encoded.take(10) + encoded.last() + encoded.substring(12, encoded.length - 1)
-                val envelope = String(Base64.getDecoder().decode(decodedEnvelope), Charsets.UTF_8)
+                if (decodedEnvelope.length < 16) return@withContext PlaybackResult.Unavailable("Einthusan returned an incomplete playback response.")
+                val envelope = String(Base64.decode(decodedEnvelope, Base64.DEFAULT), Charsets.UTF_8)
                 val hls = JSONObject(envelope).optString("HLSLink")
                     .takeIf { it.startsWith("https://") }
                     ?: return@withContext PlaybackResult.Unavailable("Einthusan returned an invalid playback link.")
