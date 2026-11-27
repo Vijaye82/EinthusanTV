@@ -524,17 +524,31 @@ private fun MovieDetails(movie: CatalogMovie, saved: Boolean, onBack: () -> Unit
 
 @Composable
 private fun SignInPage() {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(
-            Modifier.width(560.dp).background(SurfaceDark, RoundedCornerShape(20.dp))
-                .border(1.dp, Purple.copy(alpha = 0.5f), RoundedCornerShape(20.dp)).padding(30.dp),
-            verticalArrangement = Arrangement.spacedBy(13.dp)
-        ) {
-            Text("EinthusanTV", color = Color.White, fontSize = 27.sp, fontWeight = FontWeight.Black)
-            Text("Sign in to your Einthusan account", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            Text("Your favourite South Asian cinema, on the big screen.", color = TextMuted, fontSize = 13.sp)
-            EmptyState("Account connection pending", "We need Einthusan's approved sign-in method before connecting existing accounts. Please do not enter your password in this development preview.")
-        }
+    val context = LocalContext.current
+    Column(
+        Modifier.fillMaxSize().background(Background).padding(horizontal = 28.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text("Sign in to Einthusan", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
+        Text("Use the official Einthusan sign-in page. Your session stays on this device and is reused for playback.", color = TextMuted, fontSize = 12.sp)
+        AndroidView(
+            factory = { viewContext ->
+                android.webkit.WebView(viewContext).apply {
+                    settings.javaScriptEnabled = true
+                    settings.domStorageEnabled = true
+                    settings.loadsImagesAutomatically = true
+                    settings.userAgentString = "Mozilla/5.0 (Linux; Android 10; Android TV) AppleWebKit/537.36 Chrome/120.0 Safari/537.36"
+                    android.webkit.CookieManager.getInstance().setAcceptCookie(true)
+                    webViewClient = object : android.webkit.WebViewClient() {
+                        override fun onPageFinished(view: android.webkit.WebView, url: String) {
+                            android.webkit.CookieManager.getInstance().flush()
+                        }
+                    }
+                    loadUrl("https://einthusan.tv/login/?lang=tamil")
+                }
+            },
+            modifier = Modifier.fillMaxWidth().weight(1f)
+        )
     }
 }
 
