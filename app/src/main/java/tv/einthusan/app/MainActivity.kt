@@ -206,20 +206,47 @@ private fun EinthusanTvApp() {
                         }
                         "SIGN IN" -> SignInPage()
                         "MOVIES" -> {
-                            PageHeading("Explore Movies", "Einthusan movie catalogue")
+                            PageHeading("Explore Movies", "Browse the catalogue by language, genre and release year")
+                            Text("LANGUAGE", color = TextMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
                             FilterChips(languages, language) { language = it }
+                            Text("GENRE", color = TextMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
+                            FilterChips(genres, genre) { genre = it }
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Text("RELEASE YEAR", color = TextMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+                                FilterChips(listOf("All", "2026", "2025", "2024", "2023", "2022", "2021", "2020"), year) { year = it }
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("${filtered.size} titles", color = TextMuted, fontSize = 12.sp)
+                                Spacer(Modifier.weight(1f))
+                                SecondaryButton(if (alphabetical) "Sort: A–Z" else "Sort: Featured", onClick = { alphabetical = !alphabetical })
+                            }
                             MovieShelf(filtered, favourites, { selectedMovie = it }, { title ->
                                 favourites = if (title in favourites) favourites - title else favourites + title
                             })
                         }
                         else -> {
-                            PageHeading("Welcome to EinthusanTV", "Your Einthusan catalogue will appear here")
-                            Text("Browse by language", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                            PageHeading("Welcome to EinthusanTV", "Discover South Asian cinema")
+                            Text("PICK A LANGUAGE", color = TextMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
                             FilterChips(languages, language) { language = it }
-                            EmptyState(
-                                "Catalogue connection pending",
-                                "No sample films or placeholder posters are shown. Real Einthusan titles, artwork and details will appear here when an approved catalogue connection is available."
-                            )
+                            if (catalogueMovies.isEmpty()) {
+                                EmptyState(
+                                    "Your cinema is getting ready",
+                                    "The home screen is ready for featured films, recently added titles, popular picks and personalised recommendations. Connect the authorised catalogue feed to populate real posters and movie details."
+                                )
+                            } else {
+                                Text("Featured for you", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                MovieShelf(filtered.take(12), favourites, { selectedMovie = it }, { title ->
+                                    favourites = if (title in favourites) favourites - title else favourites + title
+                                })
+                                Text("Recently added", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                MovieShelf(filtered.sortedByDescending { it.year }.take(18), favourites, { selectedMovie = it }, { title ->
+                                    favourites = if (title in favourites) favourites - title else favourites + title
+                                })
+                                Text("Browse by genre", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                FilterChips(genres, genre) { genre = it; page = "MOVIES" }
+                                Text("Explore the full catalogue", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                PrimaryButton("Browse all movies", { page = "MOVIES" })
+                            }
                         }
                     }
                 }
