@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 
@@ -524,7 +525,30 @@ private fun EmptyState(title: String, message: String) {
 @Composable
 private fun PlayerScreen(movie: CatalogMovie, onBack: () -> Unit) {
     val context = LocalContext.current
+    var streamUrl by remember(movie.id) { mutableStateOf<String?>(null) }
+    var playbackStatus by remember(movie.id) { mutableStateOf("Checking for a directly playable stream…") }
+    LaunchedEffect(movie.id) {
+        try {
+            val resolved = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                EinthusanCatalogRepository().playableUrl(movie)
+            }
+            if (resolved.startsWith("https://") || resolved.startsWith("http://")) {
+                streamUrl = resolved
+                playbackStatus = "Starting playback…"
+            } else {
+                playbackStatus = "Einthusan did not expose a direct video URL in the public watch-page markup. Account-authorised playback integration is still needed."
+            }
+        } catch (error: Exception) {
+            playbackStatus = error.message?.take(180) ?: "Could not resolve the movie stream."
+        }
+    }
     val player = remember(context) { ExoPlayer.Builder(context).build().apply { playWhenReady = false } }
+    LaunchedEffect(streamUrl) {
+        val url = streamUrl ?: return@LaunchedEffect
+        player.setMediaItem(MediaItem.fromUri(url))
+        player.prepare()
+        player.playWhenReady = true
+    }
     DisposableEffect(player) { onDispose { player.release() } }
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         AndroidView(
@@ -549,9 +573,9 @@ private fun PlayerScreen(movie: CatalogMovie, onBack: () -> Unit) {
             Text(movie.title, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         }
         Text(
-            "PLAYBACK CONNECTION PENDING",
+            playbackStatus,
             Modifier.align(Alignment.BottomStart).fillMaxWidth().background(Color(0xCC10091A)).padding(16.dp),
-            color = Color(0xFFFFA9E5), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp
+            color = Color(0xFFFFA9E5), fontSize = 11.sp, fontWeight = FontWeight.Bold
         )
     }
 }
