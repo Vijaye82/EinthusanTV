@@ -520,24 +520,42 @@ private fun MovieDetails(movie: CatalogMovie, saved: Boolean, onBack: () -> Unit
 
 @Composable
 private fun SignInPage() {
-    val context = LocalContext.current
+    var webError by remember { mutableStateOf<String?>(null) }
+    var webViewRef by remember { mutableStateOf<android.webkit.WebView?>(null) }
     Column(
         Modifier.fillMaxSize().background(Background).padding(horizontal = 28.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Text("Sign in to Einthusan", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
-        Text("Use the official Einthusan sign-in page. Your session stays on this device and is reused for playback.", color = TextMuted, fontSize = 12.sp)
+        Text("Loading the official Einthusan sign-in page…", color = TextMuted, fontSize = 12.sp)
         AndroidView(
             factory = { viewContext ->
                 android.webkit.WebView(viewContext).apply {
+                    webViewRef = this
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
+                    settings.databaseEnabled = true
                     settings.loadsImagesAutomatically = true
-                    settings.userAgentString = "Mozilla/5.0 (Linux; Android 10; Android TV) AppleWebKit/537.36 Chrome/120.0 Safari/537.36"
+                    settings.useWideViewPort = true
+                    settings.loadWithOverviewMode = true
+                    settings.javaScriptCanOpenWindowsAutomatically = true
+                    settings.setSupportMultipleWindows(false)
+                    settings.userAgentString = "Mozilla/5.0 (Linux; Android 12; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36"
                     android.webkit.CookieManager.getInstance().setAcceptCookie(true)
+                    android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+                    webChromeClient = android.webkit.WebChromeClient()
                     webViewClient = object : android.webkit.WebViewClient() {
+                        override fun onPageStarted(view: android.webkit.WebView, url: String, favicon: android.graphics.Bitmap?) {
+                            webError = null
+                        }
                         override fun onPageFinished(view: android.webkit.WebView, url: String) {
                             android.webkit.CookieManager.getInstance().flush()
+                        }
+                        override fun onReceivedError(view: android.webkit.WebView, request: android.webkit.WebResourceRequest, error: android.webkit.WebResourceError) {
+                            if (request.isForMainFrame) webError = "Login page couldn't load: " + error.description + " (code " + error.errorCode + ")"
+                        }
+                        override fun onReceivedHttpError(view: android.webkit.WebView, request: android.webkit.WebResourceRequest, response: android.webkit.WebResourceResponse) {
+                            if (request.isForMainFrame) webError = "Einthusan returned HTTP " + response.statusCode + " " + response.reasonPhrase
                         }
                     }
                     loadUrl("https://einthusan.tv/login/?lang=tamil")
@@ -545,9 +563,12 @@ private fun SignInPage() {
             },
             modifier = Modifier.fillMaxWidth().weight(1f)
         )
+        if (webError != null) {
+            Text(webError!!, color = Color(0xFFFFB4AB), fontSize = 13.sp)
+            Button(onClick = { webError = null; webViewRef?.reload() }) { Text("Retry login page") }
+        }
     }
 }
-
 @Composable
 private fun EmptyState(title: String, message: String) {
     Column(Modifier.fillMaxWidth().background(SurfaceDark, RoundedCornerShape(13.dp)).padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
