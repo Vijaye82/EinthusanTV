@@ -154,6 +154,7 @@ private fun EinthusanTvApp() {
     var alphabetical by remember { mutableStateOf(false) }
     var selectedMovie by remember { mutableStateOf<CatalogMovie?>(null) }
     var playerOpen by remember { mutableStateOf(false) }
+    var introVisible by remember { mutableStateOf(true) }
     val homePlayFocusRequester = remember { FocusRequester() }
     var initialHomeFocusRequested by remember { mutableStateOf(false) }
     var favourites by remember {
@@ -190,8 +191,8 @@ private fun EinthusanTvApp() {
             .apply()
     }
 
-    LaunchedEffect(catalogueMovies, page) {
-        if (!initialHomeFocusRequested && page == "HOME" && catalogueMovies.isNotEmpty()) {
+    LaunchedEffect(introVisible, catalogueMovies, page) {
+        if (!introVisible && !initialHomeFocusRequested && page == "HOME" && catalogueMovies.isNotEmpty()) {
             delay(350)
             runCatching { homePlayFocusRequester.requestFocus() }
             initialHomeFocusRequested = true
@@ -217,7 +218,6 @@ private fun EinthusanTvApp() {
 
     MaterialTheme {
         Surface(Modifier.fillMaxSize(), color = Background) {
-            var introVisible by remember { mutableStateOf(true) }
             if (introVisible) {
                 CinematicIntro(onFinished = { introVisible = false })
             } else {
