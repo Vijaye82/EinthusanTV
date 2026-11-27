@@ -11,8 +11,6 @@ android {
     defaultConfig {
         val catalogBaseUrl = providers.gradleProperty("einthusanCatalogBaseUrl").orNull ?: "https://einthusantv-k9mh.onrender.com"
         buildConfigField("String", "EINTHUSAN_CATALOG_BASE_URL", "\"$catalogBaseUrl\"")
-        val crashReportUrl = providers.gradleProperty("crashReportUrl").orNull ?: ""
-        buildConfigField("String", "CRASH_REPORT_URL", "\"$crashReportUrl\"")
         applicationId = "tv.einthusan.app"
         minSdk = 23
         targetSdk = 28
