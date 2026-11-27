@@ -1,6 +1,7 @@
 package tv.einthusan.app
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import java.io.File
 import java.io.PrintWriter
@@ -113,14 +114,46 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun StartupDiagnosticScreen(report: String, onClear: () -> Unit) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var sending by remember { mutableStateOf(false) }
-    var sendStatus by remember { mutableStateOf<String?>(null) }
     val reportScrollState = rememberScrollState()
+    var submissionMessage by remember { mutableStateOf<String?>(null) }
     val headline = report.lineSequence().firstOrNull {
         it.contains("FATAL EXCEPTION", true) || it.contains("Caused by:", true) ||
             it.contains("Exception", true) || it.contains("Error:", true)
     }?.trim()?.take(240) ?: "The app stopped unexpectedly. Full diagnostic details are below."
+
+    fun openGitHubIssueForm() {
+        val title = "[Crash] EinthusanTV ${BuildConfig.VERSION_NAME}: ${headline.take(100)}"
+        val body = buildString {
+            appendLine("## Crash summary")
+            appendLine(headline)
+            appendLine()
+            appendLine("## App and device")
+            appendLine("- App version: ${BuildConfig.VERSION_NAME}")
+            appendLine("- Build: ${BuildConfig.VERSION_CODE}")
+            appendLine("- Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}")
+            appendLine("- Android: ${android.os.Build.VERSION.RELEASE} (SDK ${android.os.Build.VERSION.SDK_INT})")
+            appendLine()
+            appendLine("## Full diagnostic")
+            appendLine("```text")
+            appendLine(report.take(6000).replace("```", "` ` `"))
+            appendLine("```")
+            appendLine()
+            appendLine("_Submitted by the EinthusanTV in-app crash reporter. Please remove any personal information before submitting._")
+        }
+        val issueUrl = "https://github.com/Vijaye82/EinthusanTV/issues/new" +
+            "?title=" + Uri.encode(title) +
+            "&labels=" + Uri.encode("bug,crash-report") +
+            "&body=" + Uri.encode(body)
+        try {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(issueUrl)))
+            submissionMessage = "GitHub issue form opened. Review the report and select Submit new issue."
+        } catch (_: Exception) {
+            submissionMessage = "No browser is available on this Fire TV. Open github.com/Vijaye82/EinthusanTV/issues/new on another device and paste the diagnostic."
+        }
+    }
+
     MaterialTheme {
         Surface(Modifier.fillMaxSize(), color = Background) {
             Column(
@@ -128,25 +161,13 @@ private fun StartupDiagnosticScreen(report: String, onClear: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text("EinthusanTV crash report", color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.Bold)
-                Text("The app saved this diagnostic automatically. You can send it to the EinthusanTV support repository.", color = TextMuted, fontSize = 14.sp)
+                Text("Review the diagnostic and submit it to the EinthusanTV GitHub issue tracker. Nothing is uploaded automatically.", color = TextMuted, fontSize = 14.sp)
                 Text("CRASH SUMMARY", color = Color(0xFFFF6972), fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.5.sp)
                 Text(headline, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold, lineHeight = 21.sp)
-                Button(
-                    enabled = !sending,
-                    onClick = {
-                        sending = true
-                        sendStatus = "Sending diagnostic securely…"
-                        scope.launch {
-                            val result = CrashReportUploader.submit(report)
-                            sendStatus = result.fold(
-                                onSuccess = { "Report sent successfully: $it" },
-                                onFailure = { "Could not send report: " + (it.message ?: "unknown error") }
-                            )
-                            sending = false
-                        }
-                    }
-                ) { Text(if (sending) "Sending…" else "Send crash report to GitHub") }
-                sendStatus?.let { Text(it, color = if (it.startsWith("Report sent")) Color(0xFF8DE6B2) else Color(0xFFFFA0A8), fontSize = 12.sp) }
+                Button(onClick = { openGitHubIssueForm() }) {
+                    Text("Open GitHub crash report form")
+                }
+                submissionMessage?.let { Text(it, color = Color(0xFFB8D7FF), fontSize = 12.sp, lineHeight = 17.sp) }
                 OutlinedButton(onClick = onClear) { Text("Clear report and retry") }
                 Text("FULL DIAGNOSTIC", color = Color(0xFFFF6972), fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.5.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
