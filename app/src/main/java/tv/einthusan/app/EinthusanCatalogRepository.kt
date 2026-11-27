@@ -22,9 +22,11 @@ internal class EinthusanCatalogRepository(private val baseUrl: String = "https:/
                 director = roleNames(card, "Director").firstOrNull().orEmpty(),
                 description = descriptionFrom(card), id = id, posterUrl = findPoster(card, link)
             )
-        }.distinctBy { it.id }.take(12).map { movie ->
-            // Browse-card images can be cast thumbnails. Prefer each title's own watch-page artwork.
-            runCatching { artworkFallback(movie) }.getOrDefault(movie)
+        }.distinctBy { it.id }.mapIndexed { index, movie ->
+            // Preserve catalogue artwork when present; consult the watch page only when missing.
+            if (movie.posterUrl.isBlank() || index == 0 && movie.backdropUrl.isBlank()) {
+                runCatching { artworkFallback(movie) }.getOrDefault(movie)
+            } else movie
         }
     }
 
@@ -36,7 +38,7 @@ internal class EinthusanCatalogRepository(private val baseUrl: String = "https:/
             doc.selectFirst("link[rel=image_src]")?.let { it.absUrl("href").ifBlank { it.attr("href") } }.orEmpty()
         }.ifBlank { findPoster(doc.body(), doc.body()) }
         return movie.copy(
-            posterUrl = socialImage.ifBlank { image }.ifBlank { movie.posterUrl },
+            posterUrl = movie.posterUrl.ifBlank { image },
             backdropUrl = socialImage.ifBlank { image }.ifBlank { movie.backdropUrl }
         )
     }
