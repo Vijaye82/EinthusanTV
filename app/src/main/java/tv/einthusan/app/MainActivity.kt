@@ -549,12 +549,19 @@ private fun PlayerScreen(movie: CatalogMovie, accountRepository: EinthusanAccoun
     var quality by remember(movie.id) { mutableStateOf(PlaybackRequest.Quality.AUTO) }
     DisposableEffect(player) { onDispose { player.release() } }
 
-    LaunchedEffect(movie.id) {
-        when (val result = EinthusanPlaybackRepository(tv.einthusan.app.BuildConfig.EINTHUSAN_CATALOG_BASE_URL)
-            .resolve(PlaybackRequest(movie.id))) {
+    LaunchedEffect(movie.id, quality) {
+        player.stop()
+        playbackStatus = "Checking Einthusan access…"
+        when (val result = EinthusanPlaybackRepository(accountRepository)
+            .resolve(PlaybackRequest(movie.id, movie.language.lowercase(), quality))) {
             is PlaybackResult.Ready -> {
                 val source = result.sources.first()
-                player.setMediaItem(androidx.media3.common.MediaItem.fromUri(source.url))
+                val httpFactory = androidx.media3.datasource.DefaultHttpDataSource.Factory()
+                    .setDefaultRequestProperties(source.headers)
+                val dataSourceFactory = androidx.media3.datasource.DefaultDataSource.Factory(context, httpFactory)
+                val mediaSource = androidx.media3.exoplayer.source.DefaultMediaSourceFactory(dataSourceFactory)
+                    .createMediaSource(androidx.media3.common.MediaItem.fromUri(source.url))
+                player.setMediaSource(mediaSource)
                 player.prepare()
                 player.playWhenReady = true
                 playbackStatus = "Playing • " + source.label
@@ -585,6 +592,14 @@ private fun PlayerScreen(movie: CatalogMovie, accountRepository: EinthusanAccoun
             SecondaryButton("‹ Back", onBack)
             Spacer(Modifier.width(18.dp))
             Text(movie.title, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.weight(1f))
+            SecondaryButton("Quality: " + quality.name, {
+                quality = when (quality) {
+                    PlaybackRequest.Quality.AUTO -> PlaybackRequest.Quality.HD
+                    PlaybackRequest.Quality.HD -> PlaybackRequest.Quality.UHD
+                    PlaybackRequest.Quality.UHD -> PlaybackRequest.Quality.AUTO
+                }
+            })
         }
         Text(
             playbackStatus,
