@@ -158,6 +158,8 @@ private fun EinthusanTvApp() {
     val trendingEntryFocus = remember { FocusRequester() }
     val recentEntryFocus = remember { FocusRequester() }
     val recommendationsEntryFocus = remember { FocusRequester() }
+    val languageFilterEntryFocus = remember { FocusRequester() }
+    val genreFilterEntryFocus = remember { FocusRequester() }
     var returnFocusKey by remember { mutableStateOf<String?>(null) }
     var playerOpen by remember { mutableStateOf(false) }
     var introVisible by remember { mutableStateOf(true) }
@@ -311,21 +313,21 @@ private fun EinthusanTvApp() {
                                     playFocusRequester = homePlayFocusRequester
                                 )
                                 Text("Browse by language", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
-                                FilterChips(languages, language) { language = it }
+                                FilterChips(languages, language, upEntryFocus = homePlayFocusRequester, downEntryFocus = trendingEntryFocus, firstChipFocusRequester = languageFilterEntryFocus) { language = it }
                                 Text("Trending now", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                                 MovieShelf(filtered.take(16), favourites, "home-trending", movieFocusRequesters, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title ->
                                     favourites = if (title in favourites) favourites - title else favourites + title
-                                }, downEntryFocus = recentEntryFocus, firstItemFocusRequester = trendingEntryFocus)
+                                }, upEntryFocus = languageFilterEntryFocus, downEntryFocus = genreFilterEntryFocus, firstItemFocusRequester = trendingEntryFocus)
                                 Text("Recently added", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                                 MovieShelf(filtered.sortedByDescending { it.year }.take(18), favourites, "home-recent", movieFocusRequesters, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title ->
                                     favourites = if (title in favourites) favourites - title else favourites + title
-                                }, upEntryFocus = trendingEntryFocus, downEntryFocus = recommendationsEntryFocus, firstItemFocusRequester = recentEntryFocus)
+                                }, upEntryFocus = trendingEntryFocus, downEntryFocus = genreFilterEntryFocus, firstItemFocusRequester = recentEntryFocus)
                                 Text("Explore by genre", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                                FilterChips(genres, genre) { genre = it; page = "MOVIES" }
+                                FilterChips(genres, genre, upEntryFocus = recentEntryFocus, downEntryFocus = recommendationsEntryFocus, firstChipFocusRequester = genreFilterEntryFocus) { genre = it; page = "MOVIES" }
                                 Text("Your next favourite film", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                                 MovieShelf(filtered.drop(8).take(18), favourites, "home-recommendations", movieFocusRequesters, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title ->
                                     favourites = if (title in favourites) favourites - title else favourites + title
-                                }, upEntryFocus = recentEntryFocus, firstItemFocusRequester = recommendationsEntryFocus)
+                                }, upEntryFocus = genreFilterEntryFocus, firstItemFocusRequester = recommendationsEntryFocus)
                             }
                         }
                     }
@@ -486,9 +488,12 @@ private fun PageHeading(title: String, subtitle: String) {
 }
 
 @Composable
-private fun FilterChips(options: List<String>, selected: String, onSelect: (String) -> Unit) {
+private fun FilterChips(options: List<String>, selected: String, upEntryFocus: FocusRequester? = null, downEntryFocus: FocusRequester? = null, firstChipFocusRequester: FocusRequester? = null, onSelect: (String) -> Unit) {
     LazyRow(modifier = Modifier.focusGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 3.dp)) {
-        items(options) { option -> ChoiceChip(option, selected == option) { onSelect(option) } }
+        items(options) { index, option ->
+            val requester = if (index == 0) firstChipFocusRequester else null
+            ChoiceChip(option, selected == option, onClick = { onSelect(option) }, focusRequester = requester, upEntryFocus = upEntryFocus, downEntryFocus = downEntryFocus)
+        }
     }
 }
 
@@ -743,7 +748,7 @@ private fun NavButton(label: String, active: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun ChoiceChip(label: String, active: Boolean, onClick: () -> Unit) {
+private fun ChoiceChip(label: String, active: Boolean, onClick: () -> Unit, focusRequester: FocusRequester? = null, upEntryFocus: FocusRequester? = null, downEntryFocus: FocusRequester? = null) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (focused) 1.06f else 1f,
@@ -753,6 +758,11 @@ private fun ChoiceChip(label: String, active: Boolean, onClick: () -> Unit) {
     Button(
         onClick = onClick,
         modifier = Modifier.height(39.dp)
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+            .focusProperties {
+                if (upEntryFocus != null) up = upEntryFocus
+                if (downEntryFocus != null) down = downEntryFocus
+            }
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .border(
                 width = if (focused) 2.dp else 1.dp,
