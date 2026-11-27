@@ -13,9 +13,12 @@ import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -473,10 +476,23 @@ private fun MovieShelf(movies: List<CatalogMovie>, favourites: Set<String>, onSe
 @Composable
 private fun MovieCard(movie: CatalogMovie, saved: Boolean, onSelect: () -> Unit, onToggleSaved: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (focused) 1.055f else 1f,
+        animationSpec = spring(dampingRatio = 0.72f, stiffness = 420f),
+        label = "posterFocusScale"
+    )
     Column(
-        Modifier.width(166.dp).background(Color.Transparent, RoundedCornerShape(8.dp))
-            .border(if (focused) 3.dp else 1.dp, if (focused) Magenta else Color.White.copy(alpha = 0.08f), RoundedCornerShape(13.dp))
-            .onFocusChanged { focused = it.isFocused }.focusable().padding(9.dp),
+        Modifier.width(166.dp)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .background(if (focused) Color(0xFF202020) else Color.Transparent, RoundedCornerShape(13.dp))
+            .border(
+                width = if (focused) 3.dp else 1.dp,
+                color = if (focused) Color(0xFFE50914) else Color.White.copy(alpha = 0.08f),
+                shape = RoundedCornerShape(13.dp)
+            )
+            .onFocusChanged { focused = it.isFocused }
+            .clickable(onClick = onSelect)
+            .padding(9.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         PosterArtwork(movie, Modifier.fillMaxWidth().height(218.dp))
