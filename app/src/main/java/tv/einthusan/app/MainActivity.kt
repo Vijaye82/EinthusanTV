@@ -116,6 +116,7 @@ private fun StartupDiagnosticScreen(report: String, onClear: () -> Unit) {
     val scope = rememberCoroutineScope()
     var sending by remember { mutableStateOf(false) }
     var sendStatus by remember { mutableStateOf<String?>(null) }
+    val reportScrollState = rememberScrollState()
     val headline = report.lineSequence().firstOrNull {
         it.contains("FATAL EXCEPTION", true) || it.contains("Caused by:", true) ||
             it.contains("Exception", true) || it.contains("Error:", true)
@@ -123,7 +124,7 @@ private fun StartupDiagnosticScreen(report: String, onClear: () -> Unit) {
     MaterialTheme {
         Surface(Modifier.fillMaxSize(), color = Background) {
             Column(
-                Modifier.fillMaxSize().padding(28.dp).verticalScroll(rememberScrollState()),
+                Modifier.fillMaxSize().padding(28.dp).verticalScroll(reportScrollState),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text("EinthusanTV crash report", color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.Bold)
@@ -148,6 +149,24 @@ private fun StartupDiagnosticScreen(report: String, onClear: () -> Unit) {
                 sendStatus?.let { Text(it, color = if (it.startsWith("Report sent")) Color(0xFF8DE6B2) else Color(0xFFFFA0A8), fontSize = 12.sp) }
                 OutlinedButton(onClick = onClear) { Text("Clear report and retry") }
                 Text("FULL DIAGNOSTIC", color = Color(0xFFFF6972), fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.5.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedButton(
+                        enabled = reportScrollState.value > 0,
+                        onClick = { scope.launch { reportScrollState.animateScrollTo(0) } }
+                    ) { Text("↑ Scroll to top") }
+                    Button(
+                        enabled = reportScrollState.value < reportScrollState.maxValue,
+                        onClick = { scope.launch {
+                            reportScrollState.animateScrollTo(
+                                (reportScrollState.value + 520).coerceAtMost(reportScrollState.maxValue)
+                            )
+                        } }
+                    ) { Text("Scroll down ↓") }
+                }
+                Text(
+                    "Use the remote to focus Scroll down and press OK to read the next section. Scroll to top returns to the buttons.",
+                    color = TextMuted, fontSize = 11.sp, lineHeight = 15.sp
+                )
                 Text(report, color = Color.White, fontSize = 12.sp, lineHeight = 17.sp)
             }
         }
