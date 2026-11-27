@@ -895,38 +895,48 @@ private fun NavButton(
 private fun ChoiceChip(label: String, active: Boolean, onClick: () -> Unit, focusRequester: FocusRequester? = null, upEntryFocus: FocusRequester? = null, downEntryFocus: FocusRequester? = null) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
-        targetValue = if (focused) 1.06f else 1f,
-        animationSpec = spring(dampingRatio = 0.78f, stiffness = 480f),
+        targetValue = if (focused) 1.085f else 1f,
+        animationSpec = spring(dampingRatio = 0.7f, stiffness = 360f),
         label = "filterFocusScale"
     )
     Button(
         onClick = onClick,
-        modifier = Modifier.height(39.dp)
+        modifier = Modifier.height(42.dp)
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .focusProperties {
                 if (upEntryFocus != null) up = upEntryFocus
                 if (downEntryFocus != null) down = downEntryFocus
             }
-            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                shadowElevation = if (focused) 13f else 0f
+                shape = RoundedCornerShape(11.dp)
+                clip = false
+            }
             .border(
                 width = if (focused) 2.dp else 1.dp,
-                color = if (focused) Color.White else if (active) Color(0xFFFF5962) else Color.Transparent,
-                shape = RoundedCornerShape(10.dp)
+                color = when {
+                    focused -> Color.White
+                    active -> Color(0xFFFF5962)
+                    else -> Color.White.copy(alpha = 0.035f)
+                },
+                shape = RoundedCornerShape(11.dp)
             )
             .onFocusChanged { focused = it.isFocused },
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(11.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = when {
+                active && focused -> Color(0xFFFF303B)
                 active -> Purple
-                focused -> Color(0xFF414141)
+                focused -> Color(0xFF484848)
                 else -> SurfaceRaised
             },
             contentColor = Color.White
         ),
-        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 5.dp)
-    ) { Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold) }
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
+    ) { Text(label, fontSize = 11.sp, fontWeight = if (active || focused) FontWeight.Bold else FontWeight.SemiBold) }
 }
-
 @Composable
 private fun PrimaryButton(
     label: String, onClick: () -> Unit, compact: Boolean = false,
