@@ -27,7 +27,18 @@ class EinthusanAccountRepository(
     }
 
     override suspend fun currentState(): AccountState = withContext(Dispatchers.IO) {
-        if (signedIn) AccountState.SignedIn(signedInName) else AccountState.SignedOut
+        if (!signedIn) return@withContext AccountState.SignedOut
+        runCatching {
+            val accountPage = request("GET", "/account/?lang=tamil", "$baseUrl/")
+            val looksSignedIn = accountPage.contains("profile", true) ||
+                accountPage.contains("logout", true) || accountPage.contains("sign out", true)
+            if (!looksSignedIn) {
+                signedIn = false
+                signedInName = null
+                cookies.cookieStore.removeAll()
+                AccountState.SignedOut
+            } else AccountState.SignedIn(signedInName)
+        }.getOrElse { AccountState.Error("Could not verify your Einthusan session: " + (it.message ?: "connection error")) }
     }
 
     override suspend fun signIn(signInRequest: SignInRequest): AccountState = withContext(Dispatchers.IO) {
@@ -73,7 +84,7 @@ class EinthusanAccountRepository(
                 return@withContext AccountState.Error("Sign-in could not be confirmed by Einthusan.")
             }
             signedInName = Regex("<h2[^>]*>(.*?)</h2>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
-                .find(accountPage)?.groupValues?.getOrNull(1)?.replace(Regex("<[^>]+>"), "")?.trim()
+                .find(accountPage)?.groupValues?.getOrNull(1)?.replace(Regex("<[^>]+>"), "")?.let(::decodeHtml)?.trim()
             signedIn = true
             AccountState.SignedIn(signedInName)
         } catch (error: Exception) {
@@ -133,10 +144,20 @@ class EinthusanAccountRepository(
                 ).joinToString("&") { (key, value) ->
                     URLEncoder.encode(key, "UTF-8") + "=" + URLEncoder.encode(value, "UTF-8")
                 }
-                val response = request("POST", "/ajax$watchPath", "$baseUrl$watchPath", form)
-                val encoded = JSONObject(response).optJSONObject("Data")?.optString("EJLinks")
-                    ?.takeIf { it.isNotBlank() }
-                    ?: return@withContext PlaybackResult.Unavailable("Einthusan did not return a playable stream. Check your account access and try again.")
+                val ajaxPath = "/ajax/movie/watch/${URLEncoder.encode(safeId, "UTF-8")}/"
+                val response = request("POST", ajaxPath, "$baseUrl$watchPath", form)
+                val responseJson = runCatching { JSONObject(response) }.getOrNull()
+                    ?: return@withContext PlaybackResult.Unavailable("Einthusan returned an unexpected playback response: " + response.take(180))
+                val data = responseJson.optJSONObject("Data")
+                val encoded = data?.optString("EJLinks")?.takeIf { it.isNotBlank() }
+                if (encoded == null) {
+                    val eventMessage = data?.optString("Message")?.takeIf { it.isNotBlank() }
+                        ?: responseJson.optString("Message").takeIf { it.isNotBlank() }
+                    return@withContext PlaybackResult.Unavailable(eventMessage ?: "Einthusan did not return a stream link. The title or server may not be available.")
+                }
+                if (encoded.startsWith("/ratelimited/", true)) {
+                    return@withContext PlaybackResult.Unavailable("Einthusan has temporarily rate-limited playback. Please wait a few minutes and try again.")
+                }
                 // Match the public Kodi integration's EJLinks envelope decoding; the decoded URL
                 // is still issued by Einthusan after its own watch-page and entitlement checks.
                 if (encoded.length < 14) return@withContext PlaybackResult.Unavailable("Einthusan returned an incomplete playback response.")
@@ -162,6 +183,9 @@ class EinthusanAccountRepository(
         cookies.cookieStore.removeAll()
         Unit
     }
+
+    private fun decodeHtml(value: String): String =
+        android.text.Html.fromHtml(value, android.text.Html.FROM_HTML_MODE_LEGACY).toString()
 
     private fun request(method: String, path: String, referer: String, body: String? = null): String {
         val url = URL(baseUrl.trimEnd('/') + path)
