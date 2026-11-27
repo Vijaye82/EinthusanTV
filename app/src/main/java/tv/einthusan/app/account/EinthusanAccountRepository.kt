@@ -26,10 +26,10 @@ class EinthusanAccountRepository(
         if (signedIn) AccountState.SignedIn(signedInName) else AccountState.SignedOut
     }
 
-    override suspend fun signIn(request: SignInRequest): AccountState = withContext(Dispatchers.IO) {
-        val email = request.usernameOrEmail.trim()
-        val password = String(request.password)
-        request.password.fill('\u0000')
+    override suspend fun signIn(signInRequest: SignInRequest): AccountState = withContext(Dispatchers.IO) {
+        val email = signInRequest.usernameOrEmail.trim()
+        val password = String(signInRequest.password)
+        signInRequest.password.fill('\u0000')
         if (email.isBlank() || password.isBlank()) return@withContext AccountState.Error("Enter your email and password.")
         try {
             val language = "tamil"
