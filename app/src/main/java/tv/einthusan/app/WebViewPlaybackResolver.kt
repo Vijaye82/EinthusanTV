@@ -79,9 +79,10 @@ internal class WebViewPlaybackResolver(private val context: Context) : PlaybackR
                         put("User-Agent", capturedRequestHeaders.get()["User-Agent"] ?: USER_AGENT)
                         if (cookie.isNotBlank()) put("Cookie", cookie)
                     }
+                    val playbackUrl = convertToCdnUrl(url)
                     finish(PlaybackResolution(source = PlaybackSource(
-                        url = url,
-                        mimeType = mimeFor(url),
+                        url = playbackUrl,
+                        mimeType = mimeFor(playbackUrl) ?: mimeFor(url),
                         requestHeaders = headers
                     )))
                 }
@@ -169,6 +170,23 @@ internal class WebViewPlaybackResolver(private val context: Context) : PlaybackR
                 }, PAGE_TIMEOUT_MS)
             }
         }
+
+    /**
+     * Adapted from the Einthusan Stremio add-on's IP-to-CDN URL conversion approach.
+     */
+    private fun convertToCdnUrl(rawUrl: String): String {
+        return runCatching {
+            val uri = android.net.Uri.parse(rawUrl)
+            val host = uri.host.orEmpty()
+            val isIpv4Host = host.matches(Regex("""\d{1,3}(\.\d{1,3}){3}"""))
+            if (!isIpv4Host || !uri.path.orEmpty().contains("/etv/content/")) return rawUrl
+            val path = uri.path.orEmpty().let { if (it.startsWith("/d/")) it else "/d$it" }
+            val builder = uri.buildUpon().scheme("https")
+                .authority("cdn2.einthusan.io").path(path)
+            if (uri.getQueryParameter("p").isNullOrBlank()) builder.appendQueryParameter("p", "priority")
+            builder.build().toString()
+        }.getOrDefault(rawUrl)
+    }
 
     private companion object {
         const val MAX_ATTEMPTS = 50

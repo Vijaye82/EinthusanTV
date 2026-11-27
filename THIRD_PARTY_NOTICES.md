@@ -2,12 +2,46 @@
 
 ## Einthusan Stremio Add-on
 
-Repository: https://github.com/gsbmk007/Einthusan-Stremio-Addon-
+The playback URL discovery and IP-to-CDN URL conversion approach in `app/src/main/java/tv/einthusan/app/WebViewPlaybackResolver.kt` is adapted from:
 
-Copyright (c) 2024 bmk007.
+- Project: Einthusan Stremio Add-on
+- Author/maintainer: bmk007
+- Source: https://github.com/gsbmk007/Einthusan-Stremio-Addon-
+- Licence: MIT License with Non-Commercial Clause (as supplied by the upstream project)
 
-The repository is distributed under an MIT-style licence with an additional non-commercial-use restriction. Its notice requires retaining the copyright and licence text and prohibits commercial use without explicit written permission from the copyright holder.
+The upstream licence text is reproduced below. This notice applies to adapted upstream portions; it does not change the licence of unrelated EinthusanTV code.
 
-EinthusanTV's playback resolver has been informed by the add-on's publicly documented media-discovery approach (reading the movie page's exposed media/download link and applying its documented CDN URL mapping). This project does not include the Stremio add-on itself or its Puppeteer server.
+---
 
-Before any commercial distribution or publication of a derivative implementation, obtain permission from the add-on author and review the full licence terms.
+MIT License with Non-Commercial Clause
+
+Copyright (c) 2024 bmk007
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, and distribute copies of the Software,
+subject to the following conditions:
+
+1. The above copyright notice and this permission notice shall be included in
+   all copies or substantial portions of the Software.
+
+2. COMMERCIAL USE RESTRICTION: The Software may not be used for commercial
+   purposes without explicit written permission from the copyright holder.
+   Commercial use includes, but is not limited to:
+   - Selling the Software or services based on it
+   - Using the Software in a commercial product or service
+   - Generating revenue directly or indirectly from the Software
+
+   For commercial licensing, contact the author via GitHub.
+
+3. Contributions to this project are welcome and will be licensed under
+   the same terms.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
