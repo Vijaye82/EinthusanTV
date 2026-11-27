@@ -20,6 +20,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -371,7 +372,7 @@ private fun CinematicIntro(onFinished: () -> Unit) {
 
 @Composable
 private fun TopNavigation(page: String, onNavigate: (String) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    Row(Modifier.focusGroup(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         BrandMark(34.dp)
         BrandWordmark(25.sp)
         Spacer(Modifier.weight(1f))
@@ -406,7 +407,7 @@ private fun FeaturedHero(movie: CatalogMovie, onPlay: () -> Unit, onDetails: () 
             Text(movie.title, color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Black, maxLines = 2)
             Text("${movie.year}  •  ${movie.language}  •  ${movie.genre}", color = Color.White.copy(alpha = 0.88f), fontSize = 13.sp)
             Text(movie.description, color = Color.White.copy(alpha = 0.82f), fontSize = 12.sp, maxLines = 2, lineHeight = 17.sp)
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.focusGroup(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 PrimaryButton("▶  Play", onPlay)
                 SecondaryButton("ⓘ  More Info", onDetails)
             }
@@ -458,7 +459,7 @@ private fun PageHeading(title: String, subtitle: String) {
 
 @Composable
 private fun FilterChips(options: List<String>, selected: String, onSelect: (String) -> Unit) {
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 3.dp)) {
+    LazyRow(modifier = Modifier.focusGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 3.dp)) {
         items(options) { option -> ChoiceChip(option, selected == option) { onSelect(option) } }
     }
 }
@@ -466,7 +467,7 @@ private fun FilterChips(options: List<String>, selected: String, onSelect: (Stri
 @Composable
 private fun MovieShelf(movies: List<CatalogMovie>, favourites: Set<String>, onSelect: (CatalogMovie) -> Unit, onToggleSaved: (String) -> Unit) {
     if (movies.isEmpty()) EmptyState("No catalogue titles yet", "The real Einthusan catalogue will appear here once connected.")
-    else LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(vertical = 7.dp)) {
+    else LazyRow(modifier = Modifier.focusGroup(), horizontalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(vertical = 7.dp)) {
         items(movies) { movie ->
             MovieCard(movie, movie.title in favourites, { onSelect(movie) }, { onToggleSaved(movie.title) })
         }
