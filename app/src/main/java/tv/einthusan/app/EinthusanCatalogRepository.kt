@@ -43,6 +43,17 @@ internal class EinthusanCatalogRepository(private val baseUrl: String = "https:/
         )
     }
 
+    /** Only accepts a direct media URL exposed in the ordinary watch-page markup. */
+    fun playableUrl(movie: CatalogMovie): String {
+        val doc = Jsoup.connect("$baseUrl/movie/watch/" + movie.id + "/")
+            .userAgent(USER_AGENT).referrer(baseUrl).timeout(25000).get()
+        val direct = doc.selectFirst("video source[src], video[src]")?.let {
+            it.absUrl("src").ifBlank { it.attr("src") }
+        }.orEmpty()
+        if (direct.startsWith("https://") || direct.startsWith("http://")) return direct
+        return meta(doc, "og:video", "og:video:url")
+    }
+
     private fun meta(doc: org.jsoup.nodes.Document, vararg keys: String): String {
         for (key in keys) {
             val value = doc.selectFirst("meta[property=$key], meta[name=$key]")?.attr("content")?.trim()
