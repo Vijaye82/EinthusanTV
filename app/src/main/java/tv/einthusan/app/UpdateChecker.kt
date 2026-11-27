@@ -157,11 +157,28 @@ fun resumePendingApkInstall(activity: android.app.Activity) {
 
 @Composable
 fun SettingsPage(updateStatus: String, onCheckUpdates: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var browserMessage by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("Your Einthusan account is not connected to EinthusanTV yet.") }
     androidx.compose.foundation.layout.Column(
-        modifier = androidx.compose.ui.Modifier.fillMaxWidth(),
+        modifier = androidx.compose.ui.Modifier.fillMaxWidth().verticalScroll(androidx.compose.foundation.rememberScrollState()),
         verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(18.dp)
     ) {
         Text("Settings", fontSize = 28.sp)
+        Text("Einthusan account", fontSize = 20.sp)
+        Text("Open Einthusan's official sign-in page in the browser on this Fire TV. Sign in there using your normal account.")
+        androidx.compose.material3.Button(onClick = {
+            runCatching {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://einthusan.tv/login/?lang=tamil"))
+                context.startActivity(intent)
+                browserMessage = "Einthusan opened in your browser. Browser sign-in does not automatically share its session with this app."
+            }.onFailure {
+                browserMessage = "Couldn't open a browser: " + (it.message ?: "No compatible browser found.")
+            }
+        }) { Text("Open Einthusan login in browser") }
+        Text(browserMessage, color = androidx.compose.ui.graphics.Color.LightGray)
+        Text("Secure in-app account connection", fontSize = 16.sp)
+        Text("Username and password storage is not enabled yet. We will only add it when we can submit credentials through a verified Einthusan login flow and securely reuse the resulting session. This avoids saving a password that the app cannot actually use.")
+        androidx.compose.material3.Divider()
         Text("App updates", fontSize = 19.sp)
         Text("Check GitHub for the latest EinthusanTV release and install it directly.")
         Text(updateStatus, color = androidx.compose.ui.graphics.Color.LightGray)
