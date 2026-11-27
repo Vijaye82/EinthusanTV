@@ -68,7 +68,7 @@ class EinthusanAccountRepository(
             if (accountPage.contains("login", true) && !accountPage.contains("profile", true)) {
                 return@withContext AccountState.Error("Sign-in could not be confirmed by Einthusan.")
             }
-            signedInName = Regex("<h2[^>]*>(.*?)</h2>", RegexOption.IGNORE_CASE or RegexOption.DOT_MATCHES_ALL)
+            signedInName = Regex("<h2[^>]*>(.*?)</h2>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
                 .find(accountPage)?.groupValues?.getOrNull(1)?.replace(Regex("<[^>]+>"), "")?.trim()
             signedIn = true
             AccountState.SignedIn(signedInName)
@@ -95,7 +95,7 @@ class EinthusanAccountRepository(
             setRequestProperty("Origin", baseUrl)
             setRequestProperty("Referer", referer)
             setRequestProperty("Accept", "text/html,application/json")
-            cookies.get(url.toURI(), requestProperties).forEach { (key, values) ->
+            cookies.get(url.toURI(), emptyMap()).forEach { (key, values) ->
                 values.forEach { setRequestProperty(key, it) }
             }
             if (body != null) {
