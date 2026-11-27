@@ -50,12 +50,32 @@ internal class WebViewPlaybackResolver(private val context: Context) : PlaybackR
                     if (continuation.isActive) continuation.resume(result)
                 }
 
-                fun completeWithUrl(url: String) {
-                    if (!url.startsWith("https://") && !url.startsWith("http://")) return
-                    val cookie = CookieManager.getInstance().getCookie(url).orEmpty()
+                fun toCdnUrl(sourceUrl: String): String {
+                    return runCatching {
+                        val uri = android.net.Uri.parse(sourceUrl)
+                        val path = uri.path.orEmpty()
+                        if (!path.contains("/etv/content/") || uri.host.orEmpty().contains("einthusan.io")) {
+                            sourceUrl
+                        } else {
+                            val cdnPath = if (path.startsWith("/d/")) path else "/d" + path
+                            val query = uri.encodedQuery.orEmpty()
+                            val separator = if (query.isBlank()) "?" else "&"
+                            "https://cdn2.einthusan.io" + cdnPath +
+                                (if (query.isBlank()) "" else "?" + query) +
+                                (if (query.contains("p=priority")) "" else separator + "p=priority")
+                        }
+                    }.getOrDefault(sourceUrl)
+                }
+
+                fun completeWithUrl(discoveredUrl: String) {
+                    if (!discoveredUrl.startsWith("https://") && !discoveredUrl.startsWith("http://")) return
+                    val url = toCdnUrl(discoveredUrl)
+                    val cookie = (CookieManager.getInstance().getCookie(url)
+                        ?: CookieManager.getInstance().getCookie(discoveredUrl)).orEmpty()
                     val headers = buildMap {
                         putAll(capturedRequestHeaders.get())
-                        put("Referer", capturedRequestHeaders.get()["Referer"] ?: "https://einthusan.tv/movie/watch/${movie.id}/")
+                        put("Referer", "https://einthusan.tv/movie/watch/" + movie.id + "/")
+                        put("Origin", "https://einthusan.tv")
                         put("User-Agent", capturedRequestHeaders.get()["User-Agent"] ?: USER_AGENT)
                         if (cookie.isNotBlank()) put("Cookie", cookie)
                     }
@@ -80,7 +100,8 @@ internal class WebViewPlaybackResolver(private val context: Context) : PlaybackR
                                 if (child) source = child.src;
                             }
                             var button = document.querySelector('#download-content, a[download]');
-                            var value = raw || source || (button && button.href) || '';
+                            var download = button && (button.href || button.getAttribute('href'));
+                            var value = raw || source || download || '';
                             return value ? new URL(value, document.baseURI).href : '';
                         })();"""
                     ) { raw ->
