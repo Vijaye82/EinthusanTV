@@ -38,7 +38,7 @@ class EinthusanAccountRepository(
         try {
             val language = "tamil"
             val loginPage = request("GET", "/login/?lang=$language", referer = "$baseUrl/")
-            val csrf = Regex("data-pageid=[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE)
+                val csrf = Regex("""data-pageid=["'](.*?)["']""", RegexOption.IGNORE_CASE)
                 .find(loginPage)?.groupValues?.getOrNull(1)
                 ?.replace("&#43;", "+") ?: return@withContext AccountState.Error("Einthusan did not provide a sign-in token. Please try again.")
             val payload = JSONObject().put("Email", email).put("Password", password)
@@ -114,11 +114,11 @@ class EinthusanAccountRepository(
                 if (page.contains("SERVERS ARE ALMOST AT CAPACITY", true)) {
                     return@withContext PlaybackResult.Unavailable("Einthusan servers are busy. Please try again shortly.")
                 }
-                val ejp = Regex("data-ejpingables=[\\"'](.*?)[\\"']", RegexOption.IGNORE_CASE)
+                val ejp = Regex("""data-ejpingables=["'](.*?)["']""", RegexOption.IGNORE_CASE)
                     .find(page)?.groupValues?.getOrNull(1)
                     ?.takeIf { it.isNotBlank() }
                     ?: return@withContext PlaybackResult.Unavailable("Einthusan did not provide a playback token for this title.")
-                val csrf = Regex("data-pageid=[\\"'](.*?)[\\"']", RegexOption.IGNORE_CASE)
+                val csrf = Regex("""data-pageid=["'](.*?)["']""", RegexOption.IGNORE_CASE)
                     .find(page)?.groupValues?.getOrNull(1)
                     ?.replace("&#43;", "+")
                     ?.replace("&amp;", "&")
