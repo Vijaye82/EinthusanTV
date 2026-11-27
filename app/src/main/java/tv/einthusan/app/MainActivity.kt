@@ -425,7 +425,7 @@ private fun SignInPage() {
                 .border(1.dp, Purple.copy(alpha = 0.5f), RoundedCornerShape(20.dp)).padding(30.dp),
             verticalArrangement = Arrangement.spacedBy(13.dp)
         ) {
-            Text("EinthusanTV", color = Color.White, fontSize = 27.sp, fontWeight = FontWeight.Black)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {\n                BrandMark(42.dp)\n                BrandWordmark(27.sp)\n            }
             Text("Sign in to your Einthusan account", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
             Text("Your favourite South Asian cinema, on the big screen.", color = TextMuted, fontSize = 13.sp)
             EmptyState("Account connection pending", "We need Einthusan's approved sign-in method before connecting existing accounts. Please do not enter your password in this development preview.")
