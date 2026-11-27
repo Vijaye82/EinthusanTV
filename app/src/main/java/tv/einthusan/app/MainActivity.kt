@@ -231,7 +231,7 @@ private fun StartupDiagnosticScreen(report: String, onClear: () -> Unit) {
 private fun EinthusanTvApp() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val accountRepository = remember { EinthusanAccountRepository() }
+    val accountRepository = remember { EinthusanAccountRepository(context.applicationContext) }
     var accountState by remember { mutableStateOf<AccountState>(AccountState.SignedOut) }
     val languages = listOf("All", "Tamil", "Telugu", "Hindi", "Malayalam", "Kannada", "Bengali", "Punjabi", "Marathi")
     val genres = listOf("All", "Action", "Drama", "Comedy", "Romance", "Thriller", "Family", "Adventure")
