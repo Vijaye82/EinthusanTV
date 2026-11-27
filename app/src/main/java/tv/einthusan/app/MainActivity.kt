@@ -520,22 +520,42 @@ private fun MovieDetails(movie: CatalogMovie, saved: Boolean, onBack: () -> Unit
 
 @Composable
 private fun SignInPage() {
+    val context = LocalContext.current
     var webError by remember { mutableStateOf<String?>(null) }
+    var pageUrl by remember { mutableStateOf("https://einthusan.tv/login/?lang=tamil") }
+    var pageProgress by remember { mutableIntStateOf(0) }
+    var pageLoaded by remember { mutableStateOf(false) }
     var webViewRef by remember { mutableStateOf<android.webkit.WebView?>(null) }
     Column(
         Modifier.fillMaxSize().background(Background).padding(horizontal = 28.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text("Sign in to Einthusan", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
-        Text("Loading the official Einthusan sign-in page…", color = TextMuted, fontSize = 12.sp)
+        Text("Sign in on this device. Your Einthusan session is stored locally in the app browser.", color = TextMuted, fontSize = 12.sp)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Button(onClick = {
+                runCatching {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://einthusan.tv/login/?lang=tamil")))
+                }.onFailure { webError = "No browser is available to open Einthusan: " + (it.message ?: "unknown error") }
+            }) { Text("Open in browser") }
+            OutlinedButton(onClick = { webError = null; pageLoaded = false; webViewRef?.reload() }) { Text("Reload") }
+            if (!pageLoaded && webError == null) Text("$pageProgress%", color = TextMuted, fontSize = 12.sp)
+        }
+        if (webError != null) {
+            Text(webError!!, color = Color(0xFFFFB4AB), fontSize = 12.sp, maxLines = 3)
+        }
         AndroidView(
             factory = { viewContext ->
                 android.webkit.WebView(viewContext).apply {
                     webViewRef = this
+                    setBackgroundColor(android.graphics.Color.WHITE)
+                    isFocusable = true
+                    isFocusableInTouchMode = true
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
                     settings.databaseEnabled = true
                     settings.loadsImagesAutomatically = true
+                    settings.blockNetworkLoads = false
                     settings.useWideViewPort = true
                     settings.loadWithOverviewMode = true
                     settings.javaScriptCanOpenWindowsAutomatically = true
@@ -543,12 +563,27 @@ private fun SignInPage() {
                     settings.userAgentString = "Mozilla/5.0 (Linux; Android 12; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36"
                     android.webkit.CookieManager.getInstance().setAcceptCookie(true)
                     android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
-                    webChromeClient = android.webkit.WebChromeClient()
+                    webChromeClient = object : android.webkit.WebChromeClient() {
+                        override fun onProgressChanged(view: android.webkit.WebView, newProgress: Int) {
+                            pageProgress = newProgress
+                            if (newProgress == 100) pageLoaded = true
+                        }
+                        override fun onConsoleMessage(message: android.webkit.ConsoleMessage): Boolean {
+                            if (message.messageLevel() == android.webkit.ConsoleMessage.MessageLevel.ERROR) {
+                                webError = "Page script error: " + message.message().take(180)
+                            }
+                            return true
+                        }
+                    }
                     webViewClient = object : android.webkit.WebViewClient() {
                         override fun onPageStarted(view: android.webkit.WebView, url: String, favicon: android.graphics.Bitmap?) {
+                            pageUrl = url
                             webError = null
+                            pageLoaded = false
                         }
                         override fun onPageFinished(view: android.webkit.WebView, url: String) {
+                            pageUrl = url
+                            pageLoaded = true
                             android.webkit.CookieManager.getInstance().flush()
                         }
                         override fun onReceivedError(view: android.webkit.WebView, request: android.webkit.WebResourceRequest, error: android.webkit.WebResourceError) {
@@ -557,16 +592,17 @@ private fun SignInPage() {
                         override fun onReceivedHttpError(view: android.webkit.WebView, request: android.webkit.WebResourceRequest, response: android.webkit.WebResourceResponse) {
                             if (request.isForMainFrame) webError = "Einthusan returned HTTP " + response.statusCode + " " + response.reasonPhrase
                         }
+                        override fun onRenderProcessGone(view: android.webkit.WebView, detail: android.webkit.RenderProcessGoneDetail): Boolean {
+                            webError = "The Fire TV browser process stopped. Try Reload or Open in browser."
+                            return true
+                        }
                     }
                     loadUrl("https://einthusan.tv/login/?lang=tamil")
                 }
             },
-            modifier = Modifier.fillMaxWidth().weight(1f)
+            modifier = Modifier.fillMaxWidth().weight(1f).focusable()
         )
-        if (webError != null) {
-            Text(webError!!, color = Color(0xFFFFB4AB), fontSize = 13.sp)
-            Button(onClick = { webError = null; webViewRef?.reload() }) { Text("Retry login page") }
-        }
+        Text("Page: " + pageUrl.take(110), color = TextMuted, fontSize = 10.sp, maxLines = 1)
     }
 }
 @Composable
