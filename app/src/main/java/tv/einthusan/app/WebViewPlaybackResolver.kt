@@ -109,11 +109,17 @@ internal class WebViewPlaybackResolver(private val context: Context) : PlaybackR
                         request: WebResourceRequest
                     ): android.webkit.WebResourceResponse? {
                         val url = request.url.toString()
-                        if (mimeFor(url) != null && capturedMediaUrl.get() == null) {
+                        val response = super.shouldInterceptRequest(view, request)
+                        val responseMime = response?.mimeType.orEmpty().lowercase()
+                        val looksLikeMedia = mimeFor(url) != null ||
+                            responseMime.startsWith("video/") ||
+                            responseMime.contains("mpegurl") ||
+                            responseMime.contains("dash+xml")
+                        if (looksLikeMedia && capturedMediaUrl.get() == null) {
                             capturedMediaUrl.compareAndSet(null, url)
                             handler.post { if (!finished) inspectPage() }
                         }
-                        return super.shouldInterceptRequest(view, request)
+                        return response
                     }
                 }
 
