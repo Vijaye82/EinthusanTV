@@ -281,7 +281,7 @@ private fun EinthusanTvApp() {
                     Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 42.dp, vertical = 22.dp),
                     verticalArrangement = Arrangement.spacedBy(15.dp)
                 ) {
-                    TopNavigation(page, { destination ->
+                    TopNavigation(page, accountState is AccountState.SignedIn, { destination ->
                         page = destination
                         selectedMovie = null
                         playerOpen = false
@@ -364,12 +364,29 @@ private fun EinthusanTvApp() {
                             state = accountState,
                             onSignIn = { email, password ->
                                 accountState = AccountState.SigningIn
-                                scope.launch { accountState = accountRepository.signIn(SignInRequest(email, password.toCharArray())) }
+                                scope.launch { accountState = accountRepository.signIn(SignInRequest(email, password.toCharArray())); if (accountState is AccountState.SignedIn) page = "SETTINGS" }
                             },
-                            onSignOut = { scope.launch { accountRepository.signOut(); accountState = AccountState.SignedOut } },
+                            onSignOut = { scope.launch { accountRepository.signOut(); accountState = AccountState.SignedOut; page = "HOME" } },
                             emailFocus = signInEmailFocus,
                             passwordFocus = signInPasswordFocus,
                             submitFocus = signInSubmitFocus
+                        )
+                        "SETTINGS" -> SettingsPage(
+                            accountState = accountState,
+                            onSignIn = { page = "SIGN IN" },
+                            onSignOut = {
+                                scope.launch {
+                                    accountRepository.signOut()
+                                    accountState = AccountState.SignedOut
+                                    page = "HOME"
+                                }
+                            },
+                            onHome = { page = "HOME" },
+                            onClearTemporaryFiles = {
+                                context.cacheDir.listFiles()?.filter {
+                                    it.name == "einthusantv-update.apk" || it.name.startsWith("einthusantv-")
+                                }?.forEach { it.delete() }
+                            }
                         )
                         "MOVIES" -> {
                             PageHeading("Explore Movies", "Browse the catalogue by language, genre and release year")
@@ -491,22 +508,20 @@ private fun CinematicIntro(onFinished: () -> Unit) {
 
 @Composable
 private fun TopNavigation(
-    page: String, onNavigate: (String) -> Unit,
+    page: String, signedIn: Boolean, onNavigate: (String) -> Unit,
     homeNav: FocusRequester, moviesNav: FocusRequester, searchNav: FocusRequester,
     myListNav: FocusRequester, signInNav: FocusRequester,
     homeEntry: FocusRequester, moviesEntry: FocusRequester, searchEntry: FocusRequester, myListEntry: FocusRequester, signInEntry: FocusRequester
 ) {
+    val accountDestination = if (signedIn) "SETTINGS" else "SIGN IN"
     val items = listOf(
         Triple("HOME", homeNav, homeEntry), Triple("MOVIES", moviesNav, moviesEntry),
         Triple("SEARCH", searchNav, searchEntry), Triple("MY LIST", myListNav, myListEntry),
-        Triple("SIGN IN", signInNav, signInEntry)
+        Triple(accountDestination, signInNav, signInEntry)
     )
     Column(
         Modifier.fillMaxWidth()
-            .background(
-                Brush.horizontalGradient(listOf(Color(0xFF191216), Color(0xFF151515), Color(0xFF101010))),
-                RoundedCornerShape(16.dp)
-            )
+            .background(Brush.horizontalGradient(listOf(Color(0xFF191216), Color(0xFF151515), Color(0xFF101010))), RoundedCornerShape(16.dp))
             .border(1.dp, Color.White.copy(alpha = 0.075f), RoundedCornerShape(16.dp))
             .padding(horizontal = 20.dp, vertical = 13.dp),
         verticalArrangement = Arrangement.spacedBy(11.dp)
@@ -828,6 +843,63 @@ private fun MovieDetails(
                     SecondaryButton(if (saved) "♥  In My List" else "+  My List", onToggleSaved, focusRequester = saveFocus, leftFocus = playFocus)
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SettingsPage(
+    accountState: AccountState,
+    onSignIn: () -> Unit,
+    onSignOut: () -> Unit,
+    onHome: () -> Unit,
+    onClearTemporaryFiles: () -> Unit
+) {
+    PageHeading("Settings", "Manage your account and EinthusanTV")
+    Column(
+        Modifier.fillMaxWidth().background(SurfaceDark, RoundedCornerShape(16.dp))
+            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+            .padding(22.dp),
+        verticalArrangement = Arrangement.spacedBy(13.dp)
+    ) {
+        Text("ACCOUNT", color = Color(0xFFFF6972), fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.6.sp)
+        Text(
+            when (accountState) {
+                is AccountState.SignedIn -> "Signed in" + (accountState.displayName?.let { " as $it" } ?: "")
+                is AccountState.Error -> "Session needs attention"
+                else -> "Not signed in"
+            },
+            color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold
+        )
+        Text(
+            when (accountState) {
+                is AccountState.SignedIn -> "Your Einthusan account is connected for this app session."
+                is AccountState.Error -> accountState.message
+                else -> "Sign in to access playback features available to your account."
+            },
+            color = TextMuted, fontSize = 12.sp, lineHeight = 18.sp
+        )
+        if (accountState !is AccountState.SignedIn) SecondaryButton("Sign in to Einthusan", onSignIn)
+        Divider(color = Color.White.copy(alpha = 0.08f))
+        Text("APP UPDATE", color = Color(0xFFFF6972), fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.6.sp)
+        Text("Automatic update checks", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Text("EinthusanTV checks for a newer release when the app starts. Available updates are offered for download and installation through Android.", color = TextMuted, fontSize = 12.sp, lineHeight = 18.sp)
+        Divider(color = Color.White.copy(alpha = 0.08f))
+        Text("PLAYBACK", color = Color(0xFFFF6972), fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.6.sp)
+        Text("Quality options", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Text("Choose Auto, HD or UHD in the video player. Actual quality depends on the title and your Einthusan account.", color = TextMuted, fontSize = 12.sp, lineHeight = 18.sp)
+        Divider(color = Color.White.copy(alpha = 0.08f))
+        Text("STORAGE", color = Color(0xFFFF6972), fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.6.sp)
+        Text("Temporary update files", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Text("Downloaded update APKs and temporary EinthusanTV cache files can be cleared here. Your saved list and account are not removed.", color = TextMuted, fontSize = 12.sp, lineHeight = 18.sp)
+        SecondaryButton("Clear temporary files", onClearTemporaryFiles)
+        Divider(color = Color.White.copy(alpha = 0.08f))
+        Text("ABOUT", color = Color(0xFFFF6972), fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.6.sp)
+        Text("EinthusanTV • Android TV / Fire TV", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        Text("Catalogue and playback require an internet connection.", color = TextMuted, fontSize = 12.sp)
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (accountState is AccountState.SignedIn) SecondaryButton("Sign out", onSignOut)
+            SecondaryButton("Back to Home", onHome)
         }
     }
 }
