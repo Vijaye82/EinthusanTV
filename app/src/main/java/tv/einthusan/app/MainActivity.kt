@@ -519,6 +519,7 @@ private fun MovieCard(movie: CatalogMovie, saved: Boolean, focusRequester: Focus
     Column(
         Modifier.width(166.dp)
             .focusRequester(focusRequester)
+            .focusGroup()
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .background(if (focused) Color(0xFF202020) else Color.Transparent, RoundedCornerShape(13.dp))
             .border(
