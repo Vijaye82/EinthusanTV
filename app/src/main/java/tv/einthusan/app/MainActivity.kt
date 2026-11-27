@@ -323,7 +323,7 @@ private fun EinthusanSplashScreen() {
             Box(contentAlignment = Alignment.Center) {
                 Box(Modifier.size(150.dp).background(Purple.copy(alpha = glow * 0.22f), RoundedCornerShape(38.dp)))
                 Image(
-                    painter = painterResource(id = R.drawable.einthusantv_icon),
+                    painter = painterResource(id = R.drawable.einthusantv_logo),
                     contentDescription = "EinthusanTV logo",
                     modifier = Modifier.size(112.dp).graphicsLayer { scaleX = pulse; scaleY = pulse }
                 )
@@ -517,7 +517,6 @@ private fun MovieDetails(movie: CatalogMovie, saved: Boolean, onBack: () -> Unit
                 SecondaryButton(if (saved) "♥  My List" else "+  My List", onToggleSaved)
                 SecondaryButton("Back", onBack)
             }
-            Text("Playback connection is the next integration stage.", color = TextMuted, fontSize = 11.sp)
         }
     }
 }
@@ -566,20 +565,21 @@ private fun PlayerScreen(movie: CatalogMovie, onBack: () -> Unit) {
     var source by remember(movie.id) { mutableStateOf<PlaybackSource?>(null) }
     var status by remember(movie.id) { mutableStateOf("Checking for an authorised video stream…") }
     var loading by remember(movie.id) { mutableStateOf(true) }
+    var retry by remember(movie.id) { mutableIntStateOf(0) }
+    var playerError by remember(movie.id) { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(movie.id) {
+    LaunchedEffect(movie.id, retry) {
         loading = true
         source = null
+        playerError = null
         status = "Checking for an authorised video stream…"
         try {
-            val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                WebViewPlaybackResolver(context).resolve(movie)
-            }
+            val result = WebViewPlaybackResolver(context).resolve(movie)
             source = result.source
             status = result.message ?: "Preparing native playback…"
         } catch (error: Exception) {
-            status = "Couldn't resolve an authorised video stream. " +
-                (error.message?.take(160) ?: "Playback integration may be required.")
+            status = "Couldn't resolve the video stream. " +
+                (error.message?.take(180) ?: "Please try again.")
         } finally {
             loading = false
         }
@@ -588,23 +588,40 @@ private fun PlayerScreen(movie: CatalogMovie, onBack: () -> Unit) {
     val player = remember(context, movie.id) {
         ExoPlayer.Builder(context).build().apply { playWhenReady = true }
     }
-    LaunchedEffect(source) {
-        val stream = source ?: return@LaunchedEffect
-        val item = MediaItem.Builder()
-            .setUri(stream.url)
-            .apply { stream.mimeType?.let { setMimeType(it) } }
-            .build()
-        val httpFactory = DefaultHttpDataSource.Factory()
-            .setUserAgent(stream.requestHeaders["User-Agent"] ?: "EinthusanTV Android TV")
-            .setDefaultRequestProperties(stream.requestHeaders)
-        val mediaSource = DefaultMediaSourceFactory(context)
-            .setDataSourceFactory(httpFactory)
-            .createMediaSource(item)
-        player.setMediaSource(mediaSource)
-        player.prepare()
-        player.play()
+    DisposableEffect(player) {
+        val listener = object : androidx.media3.common.Player.Listener {
+            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                playerError = "Video error: ${error.errorCodeName}. ${error.message ?: "The stream was rejected or is not supported."}"
+            }
+        }
+        player.addListener(listener)
+        onDispose {
+            player.removeListener(listener)
+            player.release()
+        }
     }
-    DisposableEffect(player) { onDispose { player.release() } }
+    LaunchedEffect(source, retry) {
+        val stream = source ?: return@LaunchedEffect
+        playerError = null
+        try {
+            val item = MediaItem.Builder()
+                .setUri(stream.url)
+                .apply { stream.mimeType?.let { setMimeType(it) } }
+                .build()
+            val httpFactory = DefaultHttpDataSource.Factory()
+                .setUserAgent(stream.requestHeaders["User-Agent"] ?: "EinthusanTV Android TV")
+                .setDefaultRequestProperties(stream.requestHeaders)
+                .setAllowCrossProtocolRedirects(true)
+            val mediaSource = DefaultMediaSourceFactory(context)
+                .setDataSourceFactory(httpFactory)
+                .createMediaSource(item)
+            player.setMediaSource(mediaSource)
+            player.prepare()
+            player.play()
+        } catch (error: Exception) {
+            playerError = "Could not prepare video: ${error.message ?: error.javaClass.simpleName}"
+        }
+    }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         if (source != null) {
@@ -620,6 +637,19 @@ private fun PlayerScreen(movie: CatalogMovie, onBack: () -> Unit) {
                 update = { it.player = player },
                 modifier = Modifier.fillMaxSize()
             )
+            if (playerError != null) {
+                Column(
+                    Modifier.align(Alignment.Center).fillMaxWidth(0.78f)
+                        .background(Color(0xE8171323), RoundedCornerShape(14.dp)).padding(22.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text("THIS VIDEO COULDN'T START", color = Color(0xFFFFA9E5), fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    Text(playerError.orEmpty().take(260), color = Color.White, fontSize = 13.sp, lineHeight = 19.sp)
+                    PrimaryButton("Try again", { retry++ })
+                    SecondaryButton("‹ Back to movie", onBack)
+                }
+            }
         } else {
             Column(
                 Modifier.align(Alignment.Center).fillMaxWidth(0.78f).padding(24.dp),
@@ -629,7 +659,10 @@ private fun PlayerScreen(movie: CatalogMovie, onBack: () -> Unit) {
                 if (loading) CircularProgressIndicator(color = Magenta)
                 else Text("NATIVE PLAYBACK NOT AVAILABLE", color = Color(0xFFFFA9E5), fontSize = 17.sp, fontWeight = FontWeight.Bold)
                 Text(status, color = Color.White, fontSize = 14.sp, lineHeight = 21.sp)
-                if (!loading) SecondaryButton("‹ Back to movie", onBack)
+                if (!loading) {
+                    PrimaryButton("Try again", { retry++ })
+                    SecondaryButton("‹ Back to movie", onBack)
+                }
             }
         }
         Row(
