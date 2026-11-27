@@ -676,7 +676,7 @@ private fun SignInPage(
                 is AccountState.SignedIn -> {
                     Text("Signed in" + (state.displayName?.let { " as $it" } ?: ""), color = Color(0xFF8DE6B2), fontSize = 15.sp)
                     Text("Your session is held in memory for this app session.", color = TextMuted, fontSize = 12.sp)
-                    SecondaryButton("Sign out", onSignOut)
+                    SecondaryButton("Sign out", onSignOut, focusRequester = emailFocus)
                 }
                 else -> {
                     Text("Use your existing Einthusan account. Your password is sent only to Einthusan over HTTPS and is not saved by the app.", color = TextMuted, fontSize = 13.sp)
