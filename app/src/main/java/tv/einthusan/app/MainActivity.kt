@@ -363,8 +363,8 @@ private fun EinthusanTvApp() {
                 PlayerScreen(selectedMovie!!, accountRepository, onBack = { playerOpen = false })
             } else {
                 Column(
-                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 42.dp, vertical = 22.dp),
-                    verticalArrangement = Arrangement.spacedBy(15.dp)
+                    Modifier.fillMaxSize().padding(horizontal = 52.dp, vertical = 44.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(22.dp)
                 ) {
                     TopNavigation(page, accountState is AccountState.SignedIn, { destination ->
                         page = destination
@@ -641,7 +641,7 @@ private fun TopNavigation(
 
 @Composable
 private fun FeaturedHero(movie: CatalogMovie, onPlay: () -> Unit, onDetails: () -> Unit, playFocusRequester: FocusRequester? = null) {
-    Box(Modifier.fillMaxWidth().height(350.dp).background(SurfaceDark, RoundedCornerShape(13.dp)).border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(13.dp))) {
+    Box(Modifier.fillMaxWidth().height(300.dp).background(SurfaceDark, RoundedCornerShape(13.dp)).border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(13.dp))) {
         if (!movie.backgroundUrl.isNullOrBlank()) {
             AsyncImage(model = ImageRequest.Builder(LocalContext.current).data(movie.backgroundUrl).crossfade(true).build(), contentDescription = movie.title + " featured artwork", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         } else PosterArtwork(movie, Modifier.fillMaxSize())
@@ -669,7 +669,7 @@ private fun FeaturedHero(movie: CatalogMovie, onPlay: () -> Unit, onDetails: () 
 
 @Composable
 private fun ShelfHeading(title: String, subtitle: String) {
-    Column(Modifier.fillMaxWidth().padding(top = 5.dp, bottom = 1.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+    Column(Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
         Text(title, color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Bold)
         Text(subtitle, color = TextMuted, fontSize = 11.sp)
     }
@@ -764,6 +764,7 @@ private fun FilterChips(options: List<String>, selected: String, upEntryFocus: F
 }
 
 @Composable
+@Composable
 private fun MovieShelf(movies: List<CatalogMovie>, favourites: Set<String>, shelfId: String, focusRequesters: MutableMap<String, FocusRequester>, shelfStates: MutableMap<String, LazyListState>, restoreFocusKey: String?, onSelect: (CatalogMovie, String) -> Unit, onToggleSaved: (String) -> Unit, upEntryFocus: FocusRequester? = null, downEntryFocus: FocusRequester? = null, firstItemFocusRequester: FocusRequester? = null) {
     if (movies.isEmpty()) EmptyState("No catalogue titles yet", "The real Einthusan catalogue will appear here once connected.")
     else {
@@ -778,7 +779,12 @@ private fun MovieShelf(movies: List<CatalogMovie>, favourites: Set<String>, shel
                 }
             }
         }
-        LazyRow(state = listState, modifier = Modifier.focusGroup(), horizontalArrangement = Arrangement.spacedBy(24.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 18.dp)) {
+        LazyRow(
+            state = listState,
+            modifier = Modifier.fillMaxWidth().height(354.dp).focusGroup(),
+            horizontalArrangement = Arrangement.spacedBy(18.dp),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+        ) {
             itemsIndexed(movies, key = { _, movie -> movie.id }) { index, movie ->
                 val focusKey = shelfId + "|" + movie.id
                 val requester = remember(focusKey) {
@@ -795,37 +801,21 @@ private fun MovieShelf(movies: List<CatalogMovie>, favourites: Set<String>, shel
 @Composable
 private fun MovieCard(movie: CatalogMovie, saved: Boolean, focusRequester: FocusRequester, upEntryFocus: FocusRequester?, downEntryFocus: FocusRequester?, onSelect: () -> Unit, onToggleSaved: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (focused) 1.035f else 1f,
-        animationSpec = spring(dampingRatio = 0.68f, stiffness = 340f),
-        label = "posterFocusScale"
-    )
     Column(
-        Modifier.width(205.dp)
+        Modifier.width(184.dp).height(336.dp)
             .focusRequester(focusRequester)
             .focusGroup()
-             .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-                shadowElevation = if (focused) 12f else 0f
-                shape = RoundedCornerShape(13.dp)
-                clip = false
-            }
-            .background(if (focused) Color(0xFF242424) else Color.Transparent, RoundedCornerShape(13.dp))
-            .border(
-                width = if (focused) 3.dp else 1.dp,
-                color = if (focused) Color(0xFFFF3944) else Color.White.copy(alpha = 0.07f),
-                shape = RoundedCornerShape(13.dp)
-            )
+            .background(if (focused) Color(0xFF292126) else Color(0xFF171717), RoundedCornerShape(13.dp))
+            .border(if (focused) 3.dp else 1.dp, if (focused) Color(0xFFFF5968) else Color.White.copy(alpha = 0.20f), RoundedCornerShape(13.dp))
             .onFocusChanged { focused = it.isFocused }
             .clickable(onClick = onSelect)
-            .padding(9.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+            .padding(8.dp),
+        verticalArrangement = Arrangement.spacedBy(5.dp)
     ) {
-        PosterArtwork(movie, Modifier.fillMaxWidth().height(270.dp))
-        Text(movie.title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+        PosterArtwork(movie, Modifier.fillMaxWidth().height(224.dp))
+        Text(movie.title, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         Text("${movie.language}  •  ${movie.year}", color = TextMuted, fontSize = 10.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             PrimaryButton("Details", onSelect, compact = true)
             SecondaryButton(if (saved) "♥ Saved" else "+ List", onToggleSaved, compact = true)
         }
