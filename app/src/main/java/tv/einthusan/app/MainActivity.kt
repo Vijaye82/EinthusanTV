@@ -153,6 +153,8 @@ private fun EinthusanTvApp() {
     var director by remember { mutableStateOf("") }
     var alphabetical by remember { mutableStateOf(false) }
     var selectedMovie by remember { mutableStateOf<CatalogMovie?>(null) }
+    val movieFocusRequesters = remember { mutableMapOf<String, FocusRequester>() }
+    var returnFocusKey by remember { mutableStateOf<String?>(null) }
     var playerOpen by remember { mutableStateOf(false) }
     var introVisible by remember { mutableStateOf(true) }
     val homePlayFocusRequester = remember { FocusRequester() }
@@ -196,6 +198,13 @@ private fun EinthusanTvApp() {
             delay(350)
             runCatching { homePlayFocusRequester.requestFocus() }
             initialHomeFocusRequested = true
+        }
+    }
+
+    LaunchedEffect(selectedMovie, playerOpen, returnFocusKey) {
+        if (selectedMovie == null && !playerOpen && returnFocusKey != null) {
+            delay(220)
+            movieFocusRequesters[returnFocusKey!!]?.let { runCatching { it.requestFocus() } }
         }
     }
 
@@ -248,14 +257,15 @@ private fun EinthusanTvApp() {
                         "SEARCH" -> SearchPage(
                             query, { query = it }, actor, { actor = it }, director, { director = it },
                             genre, { genre = it }, year, { year = it }, alphabetical, { alphabetical = it },
-                            filtered, favourites, { selectedMovie = it },
-                            { title -> favourites = if (title in favourites) favourites - title else favourites + title }
+                            filtered, favourites, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie },
+                            { title -> favourites = if (title in favourites) favourites - title else favourites + title },
+                            movieFocusRequesters, returnFocusKey
                         )
                         "MY LIST" -> {
                             PageHeading("My List", "Your saved Einthusan films")
                             val saved = catalogueMovies.filter { it.title in favourites }
                             if (saved.isEmpty()) EmptyState("Your list is empty", "Open a title and choose + My List to save it here.")
-                            else MovieShelf(saved, favourites, { selectedMovie = it }, { title -> favourites = favourites - title })
+                            else MovieShelf(saved, favourites, "my-list", movieFocusRequesters, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title -> favourites = favourites - title })
                         }
                         "SIGN IN" -> SignInPage(
                             state = accountState,
@@ -280,7 +290,7 @@ private fun EinthusanTvApp() {
                                 Spacer(Modifier.weight(1f))
                                 SecondaryButton(if (alphabetical) "Sort: A–Z" else "Sort: Featured", onClick = { alphabetical = !alphabetical })
                             }
-                            MovieShelf(filtered, favourites, { selectedMovie = it }, { title ->
+                            MovieShelf(filtered, favourites, "movies", movieFocusRequesters, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title ->
                                 favourites = if (title in favourites) favourites - title else favourites + title
                             })
                         }
@@ -292,24 +302,24 @@ private fun EinthusanTvApp() {
                                 val hero = filtered.firstOrNull() ?: catalogueMovies.first()
                                 FeaturedHero(
                                     movie = hero,
-                                    onPlay = { selectedMovie = hero; playerOpen = true },
-                                    onDetails = { selectedMovie = hero },
+                                    onPlay = { returnFocusKey = null; selectedMovie = hero; playerOpen = true },
+                                    onDetails = { returnFocusKey = null; selectedMovie = hero },
                                     playFocusRequester = homePlayFocusRequester
                                 )
                                 Text("Browse by language", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
                                 FilterChips(languages, language) { language = it }
                                 Text("Trending now", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                                MovieShelf(filtered.take(16), favourites, { selectedMovie = it }, { title ->
+                                MovieShelf(filtered.take(16), favourites, "home-trending", movieFocusRequesters, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title ->
                                     favourites = if (title in favourites) favourites - title else favourites + title
                                 })
                                 Text("Recently added", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                                MovieShelf(filtered.sortedByDescending { it.year }.take(18), favourites, { selectedMovie = it }, { title ->
+                                MovieShelf(filtered.sortedByDescending { it.year }.take(18), favourites, "home-recent", movieFocusRequesters, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title ->
                                     favourites = if (title in favourites) favourites - title else favourites + title
                                 })
                                 Text("Explore by genre", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                                 FilterChips(genres, genre) { genre = it; page = "MOVIES" }
                                 Text("Your next favourite film", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                                MovieShelf(filtered.drop(8).take(18), favourites, { selectedMovie = it }, { title ->
+                                MovieShelf(filtered.drop(8).take(18), favourites, "home-recommendations", movieFocusRequesters, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title ->
                                     favourites = if (title in favourites) favourites - title else favourites + title
                                 })
                             }
@@ -433,7 +443,8 @@ private fun SearchPage(
     query: String, onQuery: (String) -> Unit, actor: String, onActor: (String) -> Unit,
     director: String, onDirector: (String) -> Unit, genre: String, onGenre: (String) -> Unit,
     year: String, onYear: (String) -> Unit, alphabetical: Boolean, onAlphabetical: (Boolean) -> Unit,
-    movies: List<CatalogMovie>, favourites: Set<String>, onSelect: (CatalogMovie) -> Unit, onToggleSaved: (String) -> Unit
+    movies: List<CatalogMovie>, favourites: Set<String>, onSelect: (CatalogMovie, String) -> Unit, onToggleSaved: (String) -> Unit,
+    focusRequesters: MutableMap<String, FocusRequester>, restoreFocusKey: String?
 ) {
     PageHeading("Search", "Find films by title, cast, director or genre")
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -450,7 +461,7 @@ private fun SearchPage(
         SecondaryButton(if (alphabetical) "A–Z ✓" else "Sort A–Z", onClick = { onAlphabetical(!alphabetical) })
         Text("${movies.size} catalogue results", color = TextMuted, fontSize = 12.sp)
     }
-    MovieShelf(movies, favourites, onSelect, onToggleSaved)
+    MovieShelf(movies, favourites, "search", focusRequesters, restoreFocusKey, onSelect, onToggleSaved)
 }
 
 @Composable
@@ -478,17 +489,27 @@ private fun FilterChips(options: List<String>, selected: String, onSelect: (Stri
 }
 
 @Composable
-private fun MovieShelf(movies: List<CatalogMovie>, favourites: Set<String>, onSelect: (CatalogMovie) -> Unit, onToggleSaved: (String) -> Unit) {
+private fun MovieShelf(movies: List<CatalogMovie>, favourites: Set<String>, shelfId: String, focusRequesters: MutableMap<String, FocusRequester>, restoreFocusKey: String?, onSelect: (CatalogMovie, String) -> Unit, onToggleSaved: (String) -> Unit) {
     if (movies.isEmpty()) EmptyState("No catalogue titles yet", "The real Einthusan catalogue will appear here once connected.")
-    else LazyRow(modifier = Modifier.focusGroup(), horizontalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(vertical = 7.dp)) {
-        items(movies) { movie ->
-            MovieCard(movie, movie.title in favourites, { onSelect(movie) }, { onToggleSaved(movie.title) })
+    else {
+        LaunchedEffect(restoreFocusKey, movies, shelfId) {
+            if (restoreFocusKey?.startsWith(shelfId + "|") == true) {
+                delay(120)
+                focusRequesters[restoreFocusKey]?.let { runCatching { it.requestFocus() } }
+            }
+        }
+        LazyRow(modifier = Modifier.focusGroup(), horizontalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(vertical = 7.dp)) {
+            items(movies, key = { it.id }) { movie ->
+                val focusKey = shelfId + "|" + movie.id
+                val requester = remember(focusKey) { focusRequesters.getOrPut(focusKey) { FocusRequester() } }
+                MovieCard(movie, movie.title in favourites, requester, { onSelect(movie, focusKey) }, { onToggleSaved(movie.title) })
+            }
         }
     }
 }
 
 @Composable
-private fun MovieCard(movie: CatalogMovie, saved: Boolean, onSelect: () -> Unit, onToggleSaved: () -> Unit) {
+private fun MovieCard(movie: CatalogMovie, saved: Boolean, focusRequester: FocusRequester, onSelect: () -> Unit, onToggleSaved: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (focused) 1.055f else 1f,
@@ -497,6 +518,7 @@ private fun MovieCard(movie: CatalogMovie, saved: Boolean, onSelect: () -> Unit,
     )
     Column(
         Modifier.width(166.dp)
+            .focusRequester(focusRequester)
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .background(if (focused) Color(0xFF202020) else Color.Transparent, RoundedCornerShape(13.dp))
             .border(
