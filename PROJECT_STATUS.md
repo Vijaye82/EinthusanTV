@@ -8,10 +8,10 @@ _Automatically refreshed by the Android TV APK build workflow._
 - App: Kotlin / Jetpack Compose Android TV and Fire TV application
 
 ## Latest build checkpoint
-- Workflow run: #171
+- Workflow run: #172
 - Build result: success
-- Source commit: a8e77b4c1539fa7d66db3462d3ed603fee0b7d4c
-- Workflow: https://github.com/Vijaye82/EinthusanTV/actions/runs/46069455973
+- Source commit: 64d34b13510edc183697ad77100a9577af161e7a
+- Workflow: https://github.com/Vijaye82/EinthusanTV/actions/runs/46072554585
 - APK: workflow artifact `EinthusanTV-preview-apk` and prerelease.
 
 ## Current direction
