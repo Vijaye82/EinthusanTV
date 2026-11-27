@@ -75,7 +75,7 @@ class EinthusanAccountRepository(
         } catch (error: Exception) {
             AccountState.Error(error.message ?: "Unable to sign in.")
         } finally {
-            request.password.fill('\u0000')
+            signInRequest.password.fill('\u0000')
         }
     }
 
@@ -83,6 +83,7 @@ class EinthusanAccountRepository(
         signedIn = false
         signedInName = null
         cookies.cookieStore.removeAll()
+        Unit
     }
 
     private fun request(method: String, path: String, referer: String, body: String? = null): String {
@@ -106,8 +107,8 @@ class EinthusanAccountRepository(
         }
         try {
             if (body != null) connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
-            cookies.put(url.toURI(), connection.headerFields)
             val status = connection.responseCode
+            cookies.put(url.toURI(), connection.headerFields)
             val stream = if (status in 200..299 || status in 300..399) connection.inputStream else connection.errorStream
             return stream?.bufferedReader()?.use { it.readText() }.orEmpty()
         } finally {
