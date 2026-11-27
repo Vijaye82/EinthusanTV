@@ -153,6 +153,8 @@ private fun EinthusanTvApp() {
                 EinthusanCatalogRepository().details(current)
             }
             if (selectedMovie?.id == current.id) selectedMovie = enriched
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
         } catch (_: Exception) {
             // Keep the browse-page details if Einthusan's watch page is temporarily unavailable.
         }
@@ -167,10 +169,15 @@ private fun EinthusanTvApp() {
                 EinthusanCatalogRepository().featured(requestedLanguage)
             }
             if (catalogueMovies.isEmpty()) catalogueError = "Einthusan returned no movie cards. The page layout may have changed or temporarily blocked this request."
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            // Language changes or leaving this screen cancel the old request; don't show that as an error.
+            throw cancelled
         } catch (error: Exception) {
             catalogueError = error.message?.take(220) ?: "Could not connect to Einthusan. Check your internet connection and try again."
         } finally {
-            catalogueLoading = false
+            if (kotlinx.coroutines.currentCoroutineContext().isActive) {
+                catalogueLoading = false
+            }
         }
     }
     var playerOpen by remember { mutableStateOf(false) }
