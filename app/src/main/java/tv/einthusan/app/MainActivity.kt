@@ -561,12 +561,7 @@ private fun PlayerScreen(movie: CatalogMovie, onBack: () -> Unit) {
     }
 
     val player = remember(context, movie.id) {
-        ExoPlayer.Builder(context)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(
-                DefaultHttpDataSource.Factory().setUserAgent("EinthusanTV Android TV")
-            ))
-            .build()
-            .apply { playWhenReady = true }
+        ExoPlayer.Builder(context).build().apply { playWhenReady = true }
     }
     LaunchedEffect(source) {
         val stream = source ?: return@LaunchedEffect
@@ -574,7 +569,13 @@ private fun PlayerScreen(movie: CatalogMovie, onBack: () -> Unit) {
             .setUri(stream.url)
             .apply { stream.mimeType?.let { setMimeType(it) } }
             .build()
-        player.setMediaItem(item)
+        val httpFactory = DefaultHttpDataSource.Factory()
+            .setUserAgent(stream.requestHeaders["User-Agent"] ?: "EinthusanTV Android TV")
+            .setDefaultRequestProperties(stream.requestHeaders)
+        val mediaSource = DefaultMediaSourceFactory(context)
+            .setDataSourceFactory(httpFactory)
+            .createMediaSource(item)
+        player.setMediaSource(mediaSource)
         player.prepare()
         player.play()
     }
