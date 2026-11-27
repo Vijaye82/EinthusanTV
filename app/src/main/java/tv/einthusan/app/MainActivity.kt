@@ -471,29 +471,25 @@ private fun TopNavigation(
 
 @Composable
 private fun FeaturedHero(movie: CatalogMovie, onPlay: () -> Unit, onDetails: () -> Unit, playFocusRequester: FocusRequester? = null) {
-    Box(Modifier.fillMaxWidth().height(310.dp).background(SurfaceDark, RoundedCornerShape(8.dp))) {
+    Box(Modifier.fillMaxWidth().height(350.dp).background(SurfaceDark, RoundedCornerShape(13.dp)).border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(13.dp))) {
         if (!movie.backgroundUrl.isNullOrBlank()) {
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current).data(movie.backgroundUrl).crossfade(true).build(),
-                contentDescription = movie.title + " featured artwork",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-        } else {
-            PosterArtwork(movie, Modifier.fillMaxSize())
-        }
-        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(
-            listOf(Color(0xFF080808), Color(0xEE080808), Color(0x99080808), Color.Transparent)
-        )))
-        Column(
-            Modifier.align(Alignment.BottomStart).fillMaxWidth(0.72f).padding(start = 28.dp, bottom = 25.dp),
-            verticalArrangement = Arrangement.spacedBy(9.dp)
-        ) {
-            Text("EINTHUSAN COLLECTION", color = Color(0xFFFF5252), fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.6.sp)
-            Text(movie.title, color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Black, maxLines = 2)
-            Text("${movie.year}  •  ${movie.language}  •  ${movie.genre}", color = Color.White.copy(alpha = 0.88f), fontSize = 13.sp)
-            Text(movie.description, color = Color.White.copy(alpha = 0.82f), fontSize = 12.sp, maxLines = 2, lineHeight = 17.sp)
-            Row(Modifier.focusGroup(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            AsyncImage(model = ImageRequest.Builder(LocalContext.current).data(movie.backgroundUrl).crossfade(true).build(), contentDescription = movie.title + " featured artwork", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        } else PosterArtwork(movie, Modifier.fillMaxSize())
+        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color(0xFF080808).copy(alpha = 0.98f), Color(0xFF080808).copy(alpha = 0.88f), Color(0xFF080808).copy(alpha = 0.34f), Color.Transparent))))
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xFF080808).copy(alpha = 0.12f), Color(0xFF080808).copy(alpha = 0.62f)))))
+        Column(Modifier.align(Alignment.BottomStart).fillMaxWidth(0.76f).padding(start = 34.dp, end = 12.dp, bottom = 29.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("FEATURED ON EINTHUSAN", color = Color(0xFFFF6972), fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.8.sp)
+            Text(movie.title, color = Color.White, fontSize = 36.sp, lineHeight = 41.sp, fontWeight = FontWeight.Black, maxLines = 2)
+            Row(horizontalArrangement = Arrangement.spacedBy(9.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(movie.language.uppercase(), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text("•", color = TextMuted)
+                Text(movie.year, color = Color.White.copy(alpha = 0.86f), fontSize = 12.sp)
+                Text("•", color = TextMuted)
+                Text(movie.genre, color = Color.White.copy(alpha = 0.86f), fontSize = 12.sp)
+                movie.rating?.let { Text("★ " + String.format("%.1f", it), color = Color(0xFFFFD166), fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+            }
+            if (movie.description.isNotBlank()) Text(movie.description, color = Color.White.copy(alpha = 0.86f), fontSize = 13.sp, maxLines = 2, lineHeight = 19.sp)
+            Row(Modifier.focusGroup().padding(top = 3.dp), horizontalArrangement = Arrangement.spacedBy(11.dp)) {
                 PrimaryButton("▶  Play", onPlay, focusRequester = playFocusRequester)
                 SecondaryButton("ⓘ  More Info", onDetails)
             }
@@ -501,6 +497,13 @@ private fun FeaturedHero(movie: CatalogMovie, onPlay: () -> Unit, onDetails: () 
     }
 }
 
+@Composable
+private fun ShelfHeading(title: String, subtitle: String) {
+    Column(Modifier.fillMaxWidth().padding(top = 5.dp, bottom = 1.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Text(title, color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+        Text(subtitle, color = TextMuted, fontSize = 11.sp)
+    }
+}
 @Composable
 private fun SearchPage(
     query: String, onQuery: (String) -> Unit, actor: String, onActor: (String) -> Unit,
