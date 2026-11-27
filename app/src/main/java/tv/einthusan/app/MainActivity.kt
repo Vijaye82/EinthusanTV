@@ -323,7 +323,7 @@ private fun EinthusanSplashScreen() {
             Box(contentAlignment = Alignment.Center) {
                 Box(Modifier.size(150.dp).background(Purple.copy(alpha = glow * 0.22f), RoundedCornerShape(38.dp)))
                 Image(
-                    painter = painterResource(id = R.drawable.ic_launcher),
+                    painter = painterResource(id = R.drawable.einthusantv_icon),
                     contentDescription = "EinthusanTV logo",
                     modifier = Modifier.size(112.dp).graphicsLayer { scaleX = pulse; scaleY = pulse }
                 )
