@@ -176,6 +176,11 @@ private fun EinthusanTvApp() {
     var playerOpen by remember { mutableStateOf(false) }
     var introVisible by remember { mutableStateOf(true) }
     val homePlayFocusRequester = remember { FocusRequester() }
+    val homeNavFocus = remember { FocusRequester() }
+    val moviesNavFocus = remember { FocusRequester() }
+    val searchNavFocus = remember { FocusRequester() }
+    val myListNavFocus = remember { FocusRequester() }
+    val signInNavFocus = remember { FocusRequester() }
     var initialHomeFocusRequested by remember { mutableStateOf(false) }
     var favourites by remember {
         mutableStateOf(
@@ -256,11 +261,12 @@ private fun EinthusanTvApp() {
                     Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 42.dp, vertical = 22.dp),
                     verticalArrangement = Arrangement.spacedBy(15.dp)
                 ) {
-                    TopNavigation(page) { destination ->
+                    TopNavigation(page, { destination ->
                         page = destination
                         selectedMovie = null
                         playerOpen = false
-                    }
+                    }, homeNavFocus, moviesNavFocus, searchNavFocus, myListNavFocus, signInNavFocus,
+                        homePlayFocusRequester, exploreLanguageEntryFocus, searchTitleFocus, myListEntryFocus)
                     if (selectedMovie != null) {
                         MovieDetails(
                             selectedMovie!!, selectedMovie!!.title in favourites,
@@ -413,13 +419,24 @@ private fun CinematicIntro(onFinished: () -> Unit) {
 }
 
 @Composable
-private fun TopNavigation(page: String, onNavigate: (String) -> Unit) {
+private fun TopNavigation(
+    page: String, onNavigate: (String) -> Unit,
+    homeNav: FocusRequester, moviesNav: FocusRequester, searchNav: FocusRequester,
+    myListNav: FocusRequester, signInNav: FocusRequester,
+    homeEntry: FocusRequester, moviesEntry: FocusRequester, searchEntry: FocusRequester, myListEntry: FocusRequester
+) {
+    val items = listOf(
+        Triple("HOME", homeNav, homeEntry), Triple("MOVIES", moviesNav, moviesEntry),
+        Triple("SEARCH", searchNav, searchEntry), Triple("MY LIST", myListNav, myListEntry),
+        Triple("SIGN IN", signInNav, null)
+    )
     Row(Modifier.focusGroup(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         BrandMark(34.dp)
         BrandWordmark(25.sp)
         Spacer(Modifier.weight(1f))
-        listOf("HOME", "MOVIES", "SEARCH", "MY LIST", "SIGN IN").forEach { item ->
-            NavButton(item, page == item) { onNavigate(item) }
+        items.forEachIndexed { index, (item, requester, entry) ->
+            NavButton(item, page == item, { onNavigate(item) }, requester,
+                items.getOrNull(index - 1)?.second, items.getOrNull(index + 1)?.second, entry)
         }
     }
 }
@@ -735,7 +752,11 @@ private fun PlayerScreen(movie: CatalogMovie, accountRepository: EinthusanAccoun
 }
 
 @Composable
-private fun NavButton(label: String, active: Boolean, onClick: () -> Unit) {
+private fun NavButton(
+    label: String, active: Boolean, onClick: () -> Unit,
+    focusRequester: FocusRequester? = null, leftFocus: FocusRequester? = null,
+    rightFocus: FocusRequester? = null, downFocus: FocusRequester? = null
+) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (focused) 1.07f else 1f,
@@ -745,6 +766,12 @@ private fun NavButton(label: String, active: Boolean, onClick: () -> Unit) {
     Button(
         onClick = onClick,
         modifier = Modifier
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+            .focusProperties {
+                if (leftFocus != null) left = leftFocus
+                if (rightFocus != null) right = rightFocus
+                if (downFocus != null) down = downFocus
+            }
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .border(
                 width = if (focused) 2.dp else 1.dp,
