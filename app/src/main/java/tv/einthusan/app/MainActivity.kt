@@ -113,30 +113,42 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun StartupDiagnosticScreen(report: String, onClear: () -> Unit) {
-    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var sending by remember { mutableStateOf(false) }
+    var sendStatus by remember { mutableStateOf<String?>(null) }
+    val headline = report.lineSequence().firstOrNull {
+        it.contains("FATAL EXCEPTION", true) || it.contains("Caused by:", true) ||
+            it.contains("Exception", true) || it.contains("Error:", true)
+    }?.trim()?.take(240) ?: "The app stopped unexpectedly. Full diagnostic details are below."
     MaterialTheme {
         Surface(Modifier.fillMaxSize(), color = Background) {
             Column(
                 Modifier.fillMaxSize().padding(28.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Text("EinthusanTV startup report", color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.Bold)
-                Text("The previous launch stopped unexpectedly. This report was saved on the Fire Stick.", color = TextMuted, fontSize = 14.sp)
-                Text(report, color = Color.White, fontSize = 12.sp, lineHeight = 17.sp)
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Button(onClick = {
-                        runCatching {
-                            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", File(context.filesDir, "startup-crash.txt"))
-                            val share = Intent(Intent.ACTION_SEND).setType("text/plain")
-                                .putExtra(Intent.EXTRA_STREAM, uri)
-                                .putExtra(Intent.EXTRA_TEXT, report)
-                                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            context.startActivity(Intent.createChooser(share, "Share startup report"))
+                Text("EinthusanTV crash report", color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+                Text("The app saved this diagnostic automatically. You can send it to the EinthusanTV support repository.", color = TextMuted, fontSize = 14.sp)
+                Text("CRASH SUMMARY", color = Color(0xFFFF6972), fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.5.sp)
+                Text(headline, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold, lineHeight = 21.sp)
+                Button(
+                    enabled = !sending,
+                    onClick = {
+                        sending = true
+                        sendStatus = "Sending diagnostic securely…"
+                        scope.launch {
+                            val result = CrashReportUploader.submit(report)
+                            sendStatus = result.fold(
+                                onSuccess = { "Report sent successfully: $it" },
+                                onFailure = { "Could not send report: " + (it.message ?: "unknown error") }
+                            )
+                            sending = false
                         }
-                    }) { Text("Share report") }
-                    OutlinedButton(onClick = onClear) { Text("Clear report and retry") }
-                }
-                Text("If sharing is unavailable on your Fire Stick, take a photo of this screen and send it here.", color = TextMuted, fontSize = 12.sp)
+                    }
+                ) { Text(if (sending) "Sending…" else "Send crash report to GitHub") }
+                sendStatus?.let { Text(it, color = if (it.startsWith("Report sent")) Color(0xFF8DE6B2) else Color(0xFFFFA0A8), fontSize = 12.sp) }
+                OutlinedButton(onClick = onClear) { Text("Clear report and retry") }
+                Text("FULL DIAGNOSTIC", color = Color(0xFFFF6972), fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.5.sp)
+                Text(report, color = Color.White, fontSize = 12.sp, lineHeight = 17.sp)
             }
         }
     }
