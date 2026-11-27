@@ -123,6 +123,10 @@ private fun StartupDiagnosticScreen(report: String, onClear: () -> Unit) {
     val scope = rememberCoroutineScope()
     val reportScrollState = rememberScrollState()
     var submissionMessage by remember { mutableStateOf<String?>(null) }
+    var shareFocused by remember { mutableStateOf(false) }
+    var clearFocused by remember { mutableStateOf(false) }
+    var topFocused by remember { mutableStateOf(false) }
+    var downFocused by remember { mutableStateOf(false) }
     val headline = report.lineSequence().firstOrNull {
         it.contains("FATAL EXCEPTION", true) || it.contains("Caused by:", true) ||
             it.contains("Exception", true) || it.contains("Error:", true)
@@ -141,9 +145,7 @@ private fun StartupDiagnosticScreen(report: String, onClear: () -> Unit) {
             appendLine("- Android: ${android.os.Build.VERSION.RELEASE} (SDK ${android.os.Build.VERSION.SDK_INT})")
             appendLine()
             appendLine("## Full diagnostic")
-            appendLine("```text")
-            appendLine(report.take(6000).replace("```", "` ` `"))
-            appendLine("```")
+            appendLine(report.take(6000))
             appendLine()
             appendLine("_Submitted by the EinthusanTV in-app crash reporter. Please remove any personal information before submitting._")
         }
@@ -155,62 +157,71 @@ private fun StartupDiagnosticScreen(report: String, onClear: () -> Unit) {
             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(issueUrl)))
             submissionMessage = "GitHub issue form opened. Review the report and select Submit new issue."
         } catch (_: Exception) {
-            submissionMessage = "No browser is available on this Fire TV. Open github.com/Vijaye82/EinthusanTV/issues/new on another device and paste the diagnostic."
+            submissionMessage = "No browser is available. Open github.com/Vijaye82/EinthusanTV/issues/new on another device and paste the diagnostic."
         }
     }
 
     MaterialTheme {
         Surface(Modifier.fillMaxSize(), color = Background) {
             Column(
-                Modifier.fillMaxSize().padding(28.dp)
-                    .focusGroup()
-                    .onPreviewKeyEvent { event ->
-                        if (event.type == KeyEventType.KeyDown) {
-                            when (event.key) {
-                                Key.DirectionDown -> {
-                                    scope.launch { reportScrollState.animateScrollBy(420f) }
-                                    true
-                                }
-                                Key.DirectionUp -> {
-                                    scope.launch { reportScrollState.animateScrollBy(-420f) }
-                                    true
-                                }
-                                else -> false
-                            }
-                        } else false
-                    }
-                    .verticalScroll(reportScrollState),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                Modifier.fillMaxSize().padding(horizontal = 28.dp, vertical = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text("EinthusanTV crash report", color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.Bold)
-                Text("Review the diagnostic and submit it to the EinthusanTV GitHub issue tracker. Nothing is uploaded automatically.", color = TextMuted, fontSize = 14.sp)
+                Text("EinthusanTV crash report", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                Text("Review the details below. The report is only shared when you choose the GitHub button.", color = TextMuted, fontSize = 13.sp, lineHeight = 18.sp)
                 Text("CRASH SUMMARY", color = Color(0xFFFF6972), fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.5.sp)
-                Text(headline, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold, lineHeight = 21.sp)
-                Button(onClick = { openGitHubIssueForm() }) {
-                    Text("Open GitHub crash report form")
-                }
-                submissionMessage?.let { Text(it, color = Color(0xFFB8D7FF), fontSize = 12.sp, lineHeight = 17.sp) }
-                OutlinedButton(onClick = onClear) { Text("Clear report and retry") }
-                Text("FULL DIAGNOSTIC", color = Color(0xFFFF6972), fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.5.sp)
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(
-                        enabled = reportScrollState.value > 0,
-                        onClick = { scope.launch { reportScrollState.animateScrollTo(0) } }
-                    ) { Text("↑ Scroll to top") }
+                Text(headline, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, lineHeight = 19.sp)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
                     Button(
-                        enabled = reportScrollState.value < reportScrollState.maxValue,
-                        onClick = { scope.launch {
-                            reportScrollState.animateScrollTo(
-                                (reportScrollState.value + 520).coerceAtMost(reportScrollState.maxValue)
-                            )
-                        } }
-                    ) { Text("Scroll down ↓") }
+                        onClick = { openGitHubIssueForm() },
+                        modifier = Modifier.weight(1f).height(54.dp)
+                            .border(if (shareFocused) 3.dp else 1.dp, if (shareFocused) Color.White else Color(0xFFFF6B9D), RoundedCornerShape(12.dp))
+                            .onFocusChanged { shareFocused = it.isFocused },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (shareFocused) Color(0xFFFF3D83) else Color(0xFF8B35D8),
+                            contentColor = Color.White
+                        )
+                    ) { Text("Send crash report to GitHub", fontWeight = FontWeight.Bold, fontSize = 13.sp) }
+                    Button(
+                        onClick = onClear,
+                        modifier = Modifier.weight(1f).height(54.dp)
+                            .border(if (clearFocused) 3.dp else 1.dp, if (clearFocused) Color.White else Color(0xFFFF6972), RoundedCornerShape(12.dp))
+                            .onFocusChanged { clearFocused = it.isFocused },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (clearFocused) Color(0xFFFF5962) else Color(0xFF3A2025),
+                            contentColor = Color.White
+                        )
+                    ) { Text("Clear report and retry", fontWeight = FontWeight.Bold, fontSize = 13.sp) }
                 }
-                Text(
-                    "Use the remote to focus Scroll down and press OK to read the next section. Scroll to top returns to the buttons.",
-                    color = TextMuted, fontSize = 11.sp, lineHeight = 15.sp
-                )
-                Text(report, color = Color.White, fontSize = 12.sp, lineHeight = 17.sp)
+                submissionMessage?.let { Text(it, color = Color(0xFFB8D7FF), fontSize = 12.sp, lineHeight = 16.sp) }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("FULL DIAGNOSTIC", color = Color(0xFFFF6972), fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.5.sp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            enabled = reportScrollState.value > 0,
+                            onClick = { scope.launch { reportScrollState.animateScrollTo(0) } },
+                            modifier = Modifier.height(40.dp).onFocusChanged { topFocused = it.isFocused },
+                            border = androidx.compose.foundation.BorderStroke(if (topFocused) 2.dp else 1.dp, if (topFocused) Color.White else Color(0xFF9D70FF)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                        ) { Text("↑ Top", fontWeight = FontWeight.Bold) }
+                        OutlinedButton(
+                            enabled = reportScrollState.value < reportScrollState.maxValue,
+                            onClick = { scope.launch { reportScrollState.animateScrollTo((reportScrollState.value + 420).coerceAtMost(reportScrollState.maxValue)) } },
+                            modifier = Modifier.height(40.dp).onFocusChanged { downFocused = it.isFocused },
+                            border = androidx.compose.foundation.BorderStroke(if (downFocused) 2.dp else 1.dp, if (downFocused) Color.White else Color(0xFF9D70FF)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                        ) { Text("More ↓", fontWeight = FontWeight.Bold) }
+                    }
+                }
+                Box(
+                    Modifier.weight(1f).fillMaxWidth()
+                        .background(Color(0xFF101018), RoundedCornerShape(12.dp))
+                        .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(12.dp))
+                ) {
+                    Text(report, Modifier.fillMaxWidth().verticalScroll(reportScrollState).padding(14.dp), color = Color(0xFFECEAF4), fontSize = 12.sp, lineHeight = 17.sp)
+                }
+                Text("Use ↑ Top and More ↓ to move through the report. The two main buttons stay visible above.", color = TextMuted, fontSize = 11.sp)
             }
         }
     }
