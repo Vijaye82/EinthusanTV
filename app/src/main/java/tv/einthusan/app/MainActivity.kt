@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -154,6 +155,9 @@ private fun EinthusanTvApp() {
     var alphabetical by remember { mutableStateOf(false) }
     var selectedMovie by remember { mutableStateOf<CatalogMovie?>(null) }
     val movieFocusRequesters = remember { mutableMapOf<String, FocusRequester>() }
+    val trendingEntryFocus = remember { FocusRequester() }
+    val recentEntryFocus = remember { FocusRequester() }
+    val recommendationsEntryFocus = remember { FocusRequester() }
     var returnFocusKey by remember { mutableStateOf<String?>(null) }
     var playerOpen by remember { mutableStateOf(false) }
     var introVisible by remember { mutableStateOf(true) }
@@ -311,17 +315,17 @@ private fun EinthusanTvApp() {
                                 Text("Trending now", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                                 MovieShelf(filtered.take(16), favourites, "home-trending", movieFocusRequesters, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title ->
                                     favourites = if (title in favourites) favourites - title else favourites + title
-                                })
+                                }, downEntryFocus = recentEntryFocus, firstItemFocusRequester = trendingEntryFocus)
                                 Text("Recently added", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                                 MovieShelf(filtered.sortedByDescending { it.year }.take(18), favourites, "home-recent", movieFocusRequesters, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title ->
                                     favourites = if (title in favourites) favourites - title else favourites + title
-                                })
+                                }, upEntryFocus = trendingEntryFocus, downEntryFocus = recommendationsEntryFocus, firstItemFocusRequester = recentEntryFocus)
                                 Text("Explore by genre", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                                 FilterChips(genres, genre) { genre = it; page = "MOVIES" }
                                 Text("Your next favourite film", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                                 MovieShelf(filtered.drop(8).take(18), favourites, "home-recommendations", movieFocusRequesters, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title ->
                                     favourites = if (title in favourites) favourites - title else favourites + title
-                                })
+                                }, upEntryFocus = recentEntryFocus, firstItemFocusRequester = recommendationsEntryFocus)
                             }
                         }
                     }
@@ -489,7 +493,7 @@ private fun FilterChips(options: List<String>, selected: String, onSelect: (Stri
 }
 
 @Composable
-private fun MovieShelf(movies: List<CatalogMovie>, favourites: Set<String>, shelfId: String, focusRequesters: MutableMap<String, FocusRequester>, restoreFocusKey: String?, onSelect: (CatalogMovie, String) -> Unit, onToggleSaved: (String) -> Unit) {
+private fun MovieShelf(movies: List<CatalogMovie>, favourites: Set<String>, shelfId: String, focusRequesters: MutableMap<String, FocusRequester>, restoreFocusKey: String?, onSelect: (CatalogMovie, String) -> Unit, onToggleSaved: (String) -> Unit, upEntryFocus: FocusRequester? = null, downEntryFocus: FocusRequester? = null, firstItemFocusRequester: FocusRequester? = null) {
     if (movies.isEmpty()) EmptyState("No catalogue titles yet", "The real Einthusan catalogue will appear here once connected.")
     else {
         LaunchedEffect(restoreFocusKey, movies, shelfId) {
@@ -499,17 +503,18 @@ private fun MovieShelf(movies: List<CatalogMovie>, favourites: Set<String>, shel
             }
         }
         LazyRow(modifier = Modifier.focusGroup(), horizontalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(vertical = 7.dp)) {
-            items(movies, key = { it.id }) { movie ->
+            items(movies, key = { it.id }) { index, movie ->
                 val focusKey = shelfId + "|" + movie.id
                 val requester = remember(focusKey) { focusRequesters.getOrPut(focusKey) { FocusRequester() } }
-                MovieCard(movie, movie.title in favourites, requester, { onSelect(movie, focusKey) }, { onToggleSaved(movie.title) })
+                val shelfEntryRequester = if (index == 0) firstItemFocusRequester else null
+                MovieCard(movie, movie.title in favourites, requester, shelfEntryRequester, upEntryFocus, downEntryFocus, { onSelect(movie, focusKey) }, { onToggleSaved(movie.title) })
             }
         }
     }
 }
 
 @Composable
-private fun MovieCard(movie: CatalogMovie, saved: Boolean, focusRequester: FocusRequester, onSelect: () -> Unit, onToggleSaved: () -> Unit) {
+private fun MovieCard(movie: CatalogMovie, saved: Boolean, focusRequester: FocusRequester, shelfEntryRequester: FocusRequester?, upEntryFocus: FocusRequester?, downEntryFocus: FocusRequester?, onSelect: () -> Unit, onToggleSaved: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (focused) 1.055f else 1f,
@@ -519,6 +524,11 @@ private fun MovieCard(movie: CatalogMovie, saved: Boolean, focusRequester: Focus
     Column(
         Modifier.width(166.dp)
             .focusRequester(focusRequester)
+            .then(if (shelfEntryRequester != null) Modifier.focusRequester(shelfEntryRequester) else Modifier)
+            .focusProperties {
+                if (upEntryFocus != null) up = upEntryFocus
+                if (downEntryFocus != null) down = downEntryFocus
+            }
             .focusGroup()
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .background(if (focused) Color(0xFF202020) else Color.Transparent, RoundedCornerShape(13.dp))
