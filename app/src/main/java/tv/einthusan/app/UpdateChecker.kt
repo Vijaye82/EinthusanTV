@@ -6,7 +6,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.*
@@ -161,7 +160,7 @@ fun SettingsPage(updateStatus: String, onCheckUpdates: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var browserMessage by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("Your Einthusan account is not connected to EinthusanTV yet.") }
     androidx.compose.foundation.layout.Column(
-        modifier = androidx.compose.ui.Modifier.fillMaxWidth().verticalScroll(androidx.compose.foundation.rememberScrollState()),
+        modifier = androidx.compose.ui.Modifier.fillMaxWidth(),
         verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(18.dp)
     ) {
         Text("Settings", fontSize = 28.sp)
