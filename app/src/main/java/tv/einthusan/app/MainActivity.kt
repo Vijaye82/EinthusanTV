@@ -305,16 +305,51 @@ private fun EinthusanTvApp() {
                             searchTitleFocus, searchActorFocus, searchDirectorFocus, searchGenreFocus, searchYearFocus, searchResultsFocus
                         )
                         "MY LIST" -> {
-                            PageHeading("My List", "Your saved Einthusan films")
                             val saved = catalogueMovies.filter { it.title in favourites }
-                            if (saved.isEmpty()) EmptyState(
-                                "Your list is empty",
-                                "Discover films in Explore Movies, then save a title to build your personal watchlist.",
-                                actionLabel = "Browse movies",
-                                onAction = { page = "MOVIES" },
-                                actionFocusRequester = myListEntryFocus
-                            )
-                            else MovieShelf(saved, favourites, "my-list", movieFocusRequesters, movieShelfStates, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title -> favourites = favourites - title }, firstItemFocusRequester = myListEntryFocus)
+                            PageHeading("My List", "Your personal collection of saved Einthusan films")
+                            Box(
+                                Modifier.fillMaxWidth().background(
+                                    Brush.horizontalGradient(listOf(Color(0xFF251116), Color(0xFF171717), SurfaceDark)),
+                                    RoundedCornerShape(16.dp)
+                                ).border(1.dp, Color(0xFFE50914).copy(alpha = 0.22f), RoundedCornerShape(16.dp))
+                                    .padding(horizontal = 22.dp, vertical = 18.dp)
+                            ) {
+                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Text("YOUR COLLECTION", color = Color(0xFFFF6972), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                                        Text(
+                                            if (saved.isEmpty()) "Build your movie night list" else "Ready when you are",
+                                            color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            if (saved.isEmpty()) "Save films from any movie card to keep them here." else "Your saved films, all in one place.",
+                                            color = TextMuted, fontSize = 12.sp
+                                        )
+                                    }
+                                    Spacer(Modifier.weight(1f))
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Text(saved.size.toString(), color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Black)
+                                        Text(if (saved.size == 1) "SAVED FILM" else "SAVED FILMS", color = TextMuted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                                    }
+                                }
+                            }
+                            if (saved.isEmpty()) {
+                                EmptyState(
+                                    "Your watchlist is waiting",
+                                    "Explore the catalogue and tap + List on a film to add it to your collection.",
+                                    actionLabel = "Explore movies",
+                                    onAction = { page = "MOVIES" },
+                                    actionFocusRequester = myListEntryFocus
+                                )
+                            } else {
+                                ShelfHeading("Saved films", "Pick up where your next movie night begins")
+                                MovieShelf(
+                                    saved, favourites, "my-list", movieFocusRequesters, movieShelfStates, returnFocusKey,
+                                    { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie },
+                                    { title -> favourites = favourites - title },
+                                    firstItemFocusRequester = myListEntryFocus
+                                )
+                            }
                         }
                         "SIGN IN" -> SignInPage(
                             state = accountState,
