@@ -24,6 +24,7 @@ import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -160,6 +161,10 @@ private fun EinthusanTvApp() {
     val recommendationsEntryFocus = remember { FocusRequester() }
     val languageFilterEntryFocus = remember { FocusRequester() }
     val genreFilterEntryFocus = remember { FocusRequester() }
+    val exploreLanguageEntryFocus = remember { FocusRequester() }
+    val exploreGenreEntryFocus = remember { FocusRequester() }
+    val exploreYearEntryFocus = remember { FocusRequester() }
+    val exploreMoviesEntryFocus = remember { FocusRequester() }
     var returnFocusKey by remember { mutableStateOf<String?>(null) }
     var playerOpen by remember { mutableStateOf(false) }
     var introVisible by remember { mutableStateOf(true) }
@@ -284,12 +289,12 @@ private fun EinthusanTvApp() {
                         "MOVIES" -> {
                             PageHeading("Explore Movies", "Browse the catalogue by language, genre and release year")
                             Text("LANGUAGE", color = TextMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
-                            FilterChips(languages, language) { language = it }
+                            FilterChips(languages, language, downEntryFocus = exploreGenreEntryFocus, firstChipFocusRequester = exploreLanguageEntryFocus) { language = it }
                             Text("GENRE", color = TextMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
-                            FilterChips(genres, genre) { genre = it }
+                            FilterChips(genres, genre, upEntryFocus = exploreLanguageEntryFocus, downEntryFocus = exploreYearEntryFocus, firstChipFocusRequester = exploreGenreEntryFocus) { genre = it }
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 Text("RELEASE YEAR", color = TextMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
-                                FilterChips(listOf("All", "2026", "2025", "2024", "2023", "2022", "2021", "2020"), year) { year = it }
+                                FilterChips(listOf("All", "2026", "2025", "2024", "2023", "2022", "2021", "2020"), year, upEntryFocus = exploreGenreEntryFocus, downEntryFocus = exploreMoviesEntryFocus, firstChipFocusRequester = exploreYearEntryFocus) { year = it }
                             }
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text("${filtered.size} titles", color = TextMuted, fontSize = 12.sp)
@@ -298,7 +303,7 @@ private fun EinthusanTvApp() {
                             }
                             MovieShelf(filtered, favourites, "movies", movieFocusRequesters, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title ->
                                 favourites = if (title in favourites) favourites - title else favourites + title
-                            })
+                            }, upEntryFocus = exploreYearEntryFocus, firstItemFocusRequester = exploreMoviesEntryFocus)
                         }
                         else -> {
                             if (catalogueMovies.isEmpty()) {
@@ -490,7 +495,7 @@ private fun PageHeading(title: String, subtitle: String) {
 @Composable
 private fun FilterChips(options: List<String>, selected: String, upEntryFocus: FocusRequester? = null, downEntryFocus: FocusRequester? = null, firstChipFocusRequester: FocusRequester? = null, onSelect: (String) -> Unit) {
     LazyRow(modifier = Modifier.focusGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 3.dp)) {
-        items(options) { index, option ->
+        itemsIndexed(options) { index, option ->
             val requester = if (index == 0) firstChipFocusRequester else null
             ChoiceChip(option, selected == option, onClick = { onSelect(option) }, focusRequester = requester, upEntryFocus = upEntryFocus, downEntryFocus = downEntryFocus)
         }
@@ -508,7 +513,7 @@ private fun MovieShelf(movies: List<CatalogMovie>, favourites: Set<String>, shel
             }
         }
         LazyRow(modifier = Modifier.focusGroup(), horizontalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(vertical = 7.dp)) {
-            items(movies, key = { it.id }) { index, movie ->
+            itemsIndexed(movies, key = { _, movie -> movie.id }) { index, movie ->
                 val focusKey = shelfId + "|" + movie.id
                 val requester = remember(focusKey) {
                     if (index == 0 && firstItemFocusRequester != null) firstItemFocusRequester
