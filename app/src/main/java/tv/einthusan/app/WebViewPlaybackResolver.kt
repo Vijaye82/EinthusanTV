@@ -70,15 +70,16 @@ internal class WebViewPlaybackResolver(private val context: Context) : PlaybackR
                     webView.evaluateJavascript(
                         """(function() {
                             var video = document.querySelector('video');
+                            var player = document.querySelector('#UIVideoPlayer');
+                            var raw = player && player.getAttribute('data-mp4-link');
+                            var video = document.querySelector('video');
                             var source = video && (video.currentSrc || video.src);
                             if (!source && video) {
                                 var child = video.querySelector('source[src]');
                                 if (child) source = child.src;
                             }
-                            var player = document.querySelector('#UIVideoPlayer');
-                            var raw = player && player.getAttribute('data-mp4-link');
                             var button = document.querySelector('#download-content, a[download]');
-                            return source || (button && button.href) || raw || '';
+                            return raw || source || (button && button.href) || '';
                         })();"""
                     ) { raw ->
                         if (finished) return@evaluateJavascript
@@ -102,6 +103,9 @@ internal class WebViewPlaybackResolver(private val context: Context) : PlaybackR
                 webView.settings.javaScriptEnabled = true
                 webView.settings.domStorageEnabled = true
                 webView.settings.loadsImagesAutomatically = false
+                webView.settings.mediaPlaybackRequiresUserGesture = false
+                CookieManager.getInstance().setAcceptCookie(true)
+                CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
                 webView.webViewClient = object : WebViewClient() {
                     override fun onPageFinished(view: WebView, url: String) {
                         inspectPage()
