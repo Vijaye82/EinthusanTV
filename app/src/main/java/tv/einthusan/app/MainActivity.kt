@@ -123,8 +123,6 @@ private fun StartupDiagnosticScreen(report: String, onClear: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val reportScrollState = rememberScrollState()
-    val submitFocusRequester = remember { FocusRequester() }
-    LaunchedEffect(Unit) { submitFocusRequester.requestFocus() }
     var submissionMessage by remember { mutableStateOf<String?>(null) }
     val headline = report.lineSequence().firstOrNull {
         it.contains("FATAL EXCEPTION", true) || it.contains("Caused by:", true) ||
@@ -166,6 +164,7 @@ private fun StartupDiagnosticScreen(report: String, onClear: () -> Unit) {
         Surface(Modifier.fillMaxSize(), color = Background) {
             Column(
                 Modifier.fillMaxSize().padding(28.dp)
+                    .focusGroup()
                     .onPreviewKeyEvent { event ->
                         if (event.type == KeyEventType.KeyDown) {
                             when (event.key) {
@@ -188,7 +187,7 @@ private fun StartupDiagnosticScreen(report: String, onClear: () -> Unit) {
                 Text("Review the diagnostic and submit it to the EinthusanTV GitHub issue tracker. Nothing is uploaded automatically.", color = TextMuted, fontSize = 14.sp)
                 Text("CRASH SUMMARY", color = Color(0xFFFF6972), fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.5.sp)
                 Text(headline, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold, lineHeight = 21.sp)
-                Button(modifier = Modifier.focusRequester(submitFocusRequester), onClick = { openGitHubIssueForm() }) {
+                Button(onClick = { openGitHubIssueForm() }) {
                     Text("Open GitHub crash report form")
                 }
                 submissionMessage?.let { Text(it, color = Color(0xFFB8D7FF), fontSize = 12.sp, lineHeight = 17.sp) }
