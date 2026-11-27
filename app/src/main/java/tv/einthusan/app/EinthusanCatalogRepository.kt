@@ -22,13 +22,29 @@ internal class EinthusanCatalogRepository(private val baseUrl: String = "https:/
                 director = roleNames(card, "Director").firstOrNull().orEmpty(),
                 description = descriptionFrom(card), id = id, posterUrl = findPoster(card, link)
             )
-        }.distinctBy { it.id }
+        }.distinctBy { it.id }.mapIndexed { index, movie ->
+            if (index < 12 && (movie.posterUrl.isBlank() || index == 0)) {
+                runCatching { artworkFallback(movie) }.getOrDefault(movie)
+            } else movie
+        }
+    }
+
+    private fun artworkFallback(movie: CatalogMovie): CatalogMovie {
+        val doc = Jsoup.connect(baseUrl + "/movie/watch/" + movie.id + "/")
+            .userAgent(USER_AGENT).referrer(baseUrl + "/").timeout(10000).get()
+        val socialImage = meta(doc, "og:image", "twitter:image", "twitter:image:src")
+        val image = socialImage.ifBlank {
+            doc.selectFirst("link[rel=image_src]")?.let { it.absUrl("href").ifBlank { it.attr("href") } }.orEmpty()
+        }.ifBlank { findPoster(doc.body(), doc.body()) }
+        return movie.copy(posterUrl = movie.posterUrl.ifBlank { image }, backdropUrl = socialImage.ifBlank { image })
     }
 
     /** Fetch richer public metadata only when a viewer opens a title. */
     fun details(movie: CatalogMovie): CatalogMovie {
         val doc = Jsoup.connect("$baseUrl/movie/watch/" + movie.id + "/").userAgent(USER_AGENT).referrer(baseUrl).timeout(25000).get()
-        val image = meta(doc, "og:image", "twitter:image")
+        val image = meta(doc, "og:image", "twitter:image", "twitter:image:src")
+            .ifBlank { doc.selectFirst("link[rel=image_src]")?.let { it.absUrl("href").ifBlank { it.attr("href") } }.orEmpty() }
+            .ifBlank { findPoster(doc.body(), doc.body()) }
         val description = meta(doc, "og:description", "description")
             .ifBlank { doc.selectFirst("[itemprop=description], .synopsis, [class*=synopsis]")?.text()?.trim().orEmpty() }
         val title = meta(doc, "og:title").ifBlank { movie.title }.substringBefore(" - Einthusan").trim()
@@ -39,7 +55,8 @@ internal class EinthusanCatalogRepository(private val baseUrl: String = "https:/
             leadActor = labelledValue(doc, "Lead").ifBlank { movie.leadActor },
             director = labelledValue(doc, "Director").ifBlank { movie.director },
             description = description.ifBlank { movie.description },
-            posterUrl = image.ifBlank { findPoster(doc.body(), doc.body()) }.ifBlank { movie.posterUrl }
+            posterUrl = image.ifBlank { movie.posterUrl },
+            backdropUrl = meta(doc, "og:image", "twitter:image").ifBlank { movie.backdropUrl }.ifBlank { image }
         )
     }
 
