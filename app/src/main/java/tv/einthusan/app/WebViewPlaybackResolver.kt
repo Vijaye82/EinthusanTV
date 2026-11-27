@@ -55,7 +55,7 @@ internal class WebViewPlaybackResolver(private val context: Context) : PlaybackR
                                 url = url,
                                 mimeType = mime,
                                 requestHeaders = mapOf(
-                                    "Referer" to "https://einthusan.tv/movie/watch/\${movie.id}/",
+                                    "Referer" to "https://einthusan.tv/movie/watch/${movie.id}/",
                                     "User-Agent" to USER_AGENT
                                 )
                             )))
@@ -84,7 +84,7 @@ internal class WebViewPlaybackResolver(private val context: Context) : PlaybackR
                         webView.destroy()
                     }
                 }
-                webView.loadUrl("https://einthusan.tv/movie/watch/\${movie.id}/")
+                webView.loadUrl("https://einthusan.tv/movie/watch/${movie.id}/")
                 handler.postDelayed({
                     finish(PlaybackResolution(message =
                         "The Einthusan movie page took too long to generate its video URL. Please try again."
