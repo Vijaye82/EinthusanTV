@@ -75,7 +75,7 @@ internal class EinthusanCatalogRepository(private val baseUrl: String = "https:/
                 if (absolute.startsWith("https://") || absolute.startsWith("http://")) return absolute
             }
             val style = element.attr("style")
-            val cssUrl = Regex("""url\\(\\s*['"]?(https?://[^)'"]+)""", RegexOption.IGNORE_CASE)
+            val cssUrl = Regex("""url\\(\\s*['\"]?(https?://[^)'\"]+)""", RegexOption.IGNORE_CASE)
                 .find(style)?.groupValues?.getOrNull(1)
             if (!cssUrl.isNullOrBlank()) return cssUrl
         }
