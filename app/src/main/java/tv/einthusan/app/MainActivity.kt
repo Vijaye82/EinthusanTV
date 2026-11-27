@@ -43,6 +43,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 
 private val Background = Color(0xFF090711)
@@ -546,7 +548,7 @@ private fun PlayerScreen(movie: CatalogMovie, onBack: () -> Unit) {
         status = "Checking for an authorised video stream…"
         try {
             val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                PublicMarkupPlaybackResolver().resolve(movie)
+                WebViewPlaybackResolver(context).resolve(movie)
             }
             source = result.source
             status = result.message ?: "Preparing native playback…"
@@ -558,7 +560,14 @@ private fun PlayerScreen(movie: CatalogMovie, onBack: () -> Unit) {
         }
     }
 
-    val player = remember(context, movie.id) { ExoPlayer.Builder(context).build().apply { playWhenReady = true } }
+    val player = remember(context, movie.id) {
+        ExoPlayer.Builder(context)
+            .setMediaSourceFactory(DefaultMediaSourceFactory(
+                DefaultHttpDataSource.Factory().setUserAgent("EinthusanTV Android TV")
+            ))
+            .build()
+            .apply { playWhenReady = true }
+    }
     LaunchedEffect(source) {
         val stream = source ?: return@LaunchedEffect
         val item = MediaItem.Builder()
