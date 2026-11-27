@@ -39,6 +39,11 @@ import kotlinx.coroutines.delay
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import androidx.compose.ui.layout.ContentScale
+import tv.einthusan.app.catalog.CatalogResult
+import tv.einthusan.app.catalog.EinthusanCatalogRepository
 
 private val Background = Color(0xFF090711)
 private val SurfaceDark = Color(0xFF171323)
@@ -49,11 +54,11 @@ private val TextMuted = Color(0xFFBDB5C9)
 
 private data class CatalogMovie(
     val title: String, val language: String, val year: String, val genre: String,
-    val leadActor: String, val director: String, val description: String
+    val leadActor: String, val director: String, val description: String,
+    val id: String = title, val posterUrl: String? = null, val backgroundUrl: String? = null,
+    val rating: Double? = null, val cast: List<String> = emptyList()
 )
 
-// The catalogue starts empty and will be populated through an approved Einthusan integration.
-private val catalogueMovies = emptyList<CatalogMovie>()
 
 class MainActivity : ComponentActivity() {
     private val crashFile by lazy { File(filesDir, "startup-crash.txt") }
@@ -121,6 +126,8 @@ private fun EinthusanTvApp() {
     val context = LocalContext.current
     val languages = listOf("All", "Tamil", "Telugu", "Hindi", "Malayalam", "Kannada", "Bengali", "Punjabi", "Marathi")
     val genres = listOf("All", "Action", "Drama", "Comedy", "Romance", "Thriller", "Family", "Adventure")
+    var catalogueMovies by remember { mutableStateOf(emptyList<CatalogMovie>()) }
+    var catalogStatus by remember { mutableStateOf("Loading the latest Einthusan catalogue…") }
     var page by remember { mutableStateOf("HOME") }
     var language by remember { mutableStateOf("All") }
     var genre by remember { mutableStateOf("All") }
@@ -136,6 +143,24 @@ private fun EinthusanTvApp() {
             context.getSharedPreferences("user_preferences", android.content.Context.MODE_PRIVATE)
                 .getStringSet("favourites", emptySet())?.toSet() ?: emptySet()
         )
+    }
+
+
+    LaunchedEffect(Unit) {
+        when (val result = EinthusanCatalogRepository(tv.einthusan.app.BuildConfig.EINTHUSAN_CATALOG_BASE_URL).loadHome()) {
+            is CatalogResult.Success -> {
+                catalogueMovies = result.snapshot.sections.flatMap { it.movies }.map { movie ->
+                    CatalogMovie(
+                        title = movie.title, language = movie.language, year = movie.year?.toString() ?: "—",
+                        genre = movie.genres.firstOrNull() ?: "Cinema", leadActor = movie.cast.firstOrNull() ?: "",
+                        director = movie.director.orEmpty(), description = movie.synopsis.orEmpty(), id = movie.id,
+                        posterUrl = movie.posterUrl, backgroundUrl = movie.backgroundUrl, rating = movie.rating, cast = movie.cast
+                    )
+                }
+                catalogStatus = "${catalogueMovies.size} movies loaded"
+            }
+            is CatalogResult.Failure -> catalogStatus = result.message
+        }
     }
 
     LaunchedEffect(favourites) {
@@ -231,7 +256,7 @@ private fun EinthusanTvApp() {
                             if (catalogueMovies.isEmpty()) {
                                 EmptyState(
                                     "Your cinema is getting ready",
-                                    "The home screen is ready for featured films, recently added titles, popular picks and personalised recommendations. Connect the authorised catalogue feed to populate real posters and movie details."
+                                    catalogStatus
                                 )
                             } else {
                                 Text("Featured for you", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
@@ -416,10 +441,19 @@ private fun PosterArtwork(movie: CatalogMovie, modifier: Modifier = Modifier) {
         "adventure" -> listOf(Color(0xFF173D60), Color(0xFF398B83))
         else -> listOf(Color(0xFF55234F), Color(0xFFB45A73))
     }
-    Box(modifier.background(Brush.linearGradient(colors), RoundedCornerShape(10.dp)).padding(10.dp)) {
-        Text(movie.language.uppercase(), Modifier.align(Alignment.TopStart), color = Color.White.copy(alpha = 0.75f), fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
-        Text(movie.title.uppercase(), Modifier.align(Alignment.Center), color = Color.White, fontSize = 17.sp, lineHeight = 19.sp, fontWeight = FontWeight.Black)
-        Text("${movie.genre.uppercase()}  •  ${movie.year}", Modifier.align(Alignment.BottomStart), color = Color.White.copy(alpha = 0.8f), fontSize = 8.sp)
+    if (!movie.posterUrl.isNullOrBlank()) {
+        AsyncImage(
+            model = ImageRequest.Builder(LocalContext.current).data(movie.posterUrl).crossfade(true).build(),
+            contentDescription = movie.title,
+            contentScale = ContentScale.Crop,
+            modifier = modifier.background(SurfaceRaised, RoundedCornerShape(10.dp))
+        )
+    } else {
+        Box(modifier.background(Brush.linearGradient(colors), RoundedCornerShape(10.dp)).padding(10.dp)) {
+            Text(movie.language.uppercase(), Modifier.align(Alignment.TopStart), color = Color.White.copy(alpha = 0.75f), fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
+            Text(movie.title.uppercase(), Modifier.align(Alignment.Center), color = Color.White, fontSize = 17.sp, lineHeight = 19.sp, fontWeight = FontWeight.Black)
+            Text("${movie.genre.uppercase()}  •  ${movie.year}", Modifier.align(Alignment.BottomStart), color = Color.White.copy(alpha = 0.8f), fontSize = 8.sp)
+        }
     }
 }
 
