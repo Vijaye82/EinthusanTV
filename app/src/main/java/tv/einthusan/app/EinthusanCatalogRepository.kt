@@ -22,10 +22,9 @@ internal class EinthusanCatalogRepository(private val baseUrl: String = "https:/
                 director = roleNames(card, "Director").firstOrNull().orEmpty(),
                 description = descriptionFrom(card), id = id, posterUrl = findPoster(card, link)
             )
-        }.distinctBy { it.id }.mapIndexed { index, movie ->
-            if (index < 12 && (movie.posterUrl.isBlank() || index == 0)) {
-                runCatching { artworkFallback(movie) }.getOrDefault(movie)
-            } else movie
+        }.distinctBy { it.id }.take(12).map { movie ->
+            // Browse-card images can be cast thumbnails. Prefer each title's own watch-page artwork.
+            runCatching { artworkFallback(movie) }.getOrDefault(movie)
         }
     }
 
@@ -36,7 +35,10 @@ internal class EinthusanCatalogRepository(private val baseUrl: String = "https:/
         val image = socialImage.ifBlank {
             doc.selectFirst("link[rel=image_src]")?.let { it.absUrl("href").ifBlank { it.attr("href") } }.orEmpty()
         }.ifBlank { findPoster(doc.body(), doc.body()) }
-        return movie.copy(posterUrl = movie.posterUrl.ifBlank { image }, backdropUrl = socialImage.ifBlank { image })
+        return movie.copy(
+            posterUrl = socialImage.ifBlank { image }.ifBlank { movie.posterUrl },
+            backdropUrl = socialImage.ifBlank { image }.ifBlank { movie.backdropUrl }
+        )
     }
 
     /** Fetch richer public metadata only when a viewer opens a title. */
