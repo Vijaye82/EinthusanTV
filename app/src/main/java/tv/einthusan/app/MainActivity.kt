@@ -781,11 +781,11 @@ private fun MovieShelf(movies: List<CatalogMovie>, favourites: Set<String>, shel
         }
         LazyRow(
             state = listState,
-            modifier = Modifier.fillMaxWidth().height(370.dp)
+            modifier = Modifier.fillMaxWidth().height(238.dp)
                 .clipToBounds()
                 .background(Color(0xFF101010), RoundedCornerShape(12.dp))
                 .focusGroup(),
-            horizontalArrangement = Arrangement.spacedBy(18.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
         ) {
             itemsIndexed(movies, key = { _, movie -> movie.id }) { index, movie ->
@@ -795,33 +795,29 @@ private fun MovieShelf(movies: List<CatalogMovie>, favourites: Set<String>, shel
                         if (index == 0 && firstItemFocusRequester != null) firstItemFocusRequester else FocusRequester()
                     }
                 }
-                MovieCard(movie, movie.title in favourites, requester, upEntryFocus, downEntryFocus, { onSelect(movie, focusKey) }, { onToggleSaved(movie.title) })
+                MovieCard(movie, requester, { onSelect(movie, focusKey) })
             }
         }
     }
 }
 
 @Composable
-private fun MovieCard(movie: CatalogMovie, saved: Boolean, focusRequester: FocusRequester, upEntryFocus: FocusRequester?, downEntryFocus: FocusRequester?, onSelect: () -> Unit, onToggleSaved: () -> Unit) {
+private fun MovieCard(movie: CatalogMovie, focusRequester: FocusRequester, onSelect: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
-    Column(
-        Modifier.width(184.dp).height(336.dp)
+    Box(
+        Modifier.width(142.dp).height(210.dp)
             .focusRequester(focusRequester)
             .focusGroup()
-            .background(if (focused) Color(0xFF292126) else Color(0xFF171717), RoundedCornerShape(13.dp))
-            .border(if (focused) 3.dp else 1.dp, if (focused) Color(0xFFFF5968) else Color.White.copy(alpha = 0.20f), RoundedCornerShape(13.dp))
+            .clip(RoundedCornerShape(11.dp))
+            .border(
+                if (focused) 3.dp else 1.dp,
+                if (focused) Color.White else Color.White.copy(alpha = 0.18f),
+                RoundedCornerShape(11.dp)
+            )
             .onFocusChanged { focused = it.isFocused }
             .clickable(onClick = onSelect)
-            .padding(8.dp),
-        verticalArrangement = Arrangement.spacedBy(5.dp)
     ) {
-        PosterArtwork(movie, Modifier.fillMaxWidth().height(224.dp))
-        Text(movie.title, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-        Text("${movie.language}  •  ${movie.year}", color = TextMuted, fontSize = 10.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            PrimaryButton("Details", onSelect, compact = true)
-            SecondaryButton(if (saved) "♥ Saved" else "+ List", onToggleSaved, compact = true)
-        }
+        PosterArtwork(movie, Modifier.fillMaxSize())
     }
 }
 
