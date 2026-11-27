@@ -9,6 +9,11 @@ import androidx.core.content.FileProvider
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
@@ -25,10 +30,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
@@ -157,7 +164,11 @@ private fun EinthusanTvApp() {
 
     MaterialTheme {
         Surface(Modifier.fillMaxSize(), color = Background) {
-            AppUpdateChecker()
+            var introVisible by remember { mutableStateOf(true) }
+            if (introVisible) {
+                CinematicIntro(onFinished = { introVisible = false })
+            } else {
+                AppUpdateChecker()
             if (playerOpen && selectedMovie != null) {
                 PlayerScreen(selectedMovie!!, onBack = { playerOpen = false })
             } else {
@@ -213,17 +224,77 @@ private fun EinthusanTvApp() {
                     }
                 }
             }
+            }
         }
     }
 }
 
 @Composable
-private fun TopNavigation(page: String, onNavigate: (String) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Einthusan", color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.Black)
-            Text("TV", color = Magenta, fontSize = 25.sp, fontWeight = FontWeight.Black)
+private fun BrandMark(size: androidx.compose.ui.unit.Dp) {
+    Box(
+        Modifier.size(size).background(
+            Brush.linearGradient(listOf(Color(0xFF7427E8), Color(0xFFE51CB7), Color(0xFFFF8A18))),
+            RoundedCornerShape(size * 0.28f)
+        ),
+        contentAlignment = Alignment.Center
+    ) {
+        Text("▶", color = Color.White, fontSize = (size.value * 0.43f).sp, fontWeight = FontWeight.Black)
+    }
+}
+
+@Composable
+private fun BrandWordmark(fontSize: androidx.compose.ui.unit.TextUnit) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(0.dp)) {
+        Text("Einthusan", color = Color.White, fontSize = fontSize, fontWeight = FontWeight.Black, letterSpacing = (-0.7).sp)
+        Text("TV", color = Color(0xFFFF5B79), fontSize = fontSize, fontWeight = FontWeight.Black, letterSpacing = (-0.7).sp)
+    }
+}
+
+@Composable
+private fun CinematicIntro(onFinished: () -> Unit) {
+    val transition = rememberInfiniteTransition(label = "logoGlow")
+    val glow by transition.animateFloat(
+        initialValue = 0.78f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(animation = tween(1100), repeatMode = RepeatMode.Reverse),
+        label = "glow"
+    )
+    LaunchedEffect(Unit) {
+        delay(2800)
+        onFinished()
+    }
+    Box(
+        Modifier.fillMaxSize().background(
+            Brush.radialGradient(
+                colors = listOf(Color(0xFF24102F), Color(0xFF0D0818), Color(0xFF05040A)),
+                radius = 1000f
+            )
+        ),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(22.dp)) {
+            BrandMark(104.dp)
+            BrandWordmark(39.sp)
+            Box(
+                Modifier.width(190.dp).height(2.dp).background(
+                    Brush.horizontalGradient(listOf(Color.Transparent, Color(0xFF8D28E8), Color(0xFFFF4E87), Color.Transparent))
+                ).graphicsLayer(alpha = glow)
+            )
         }
+        Text(
+            "A WORLD OF CINEMA",
+            Modifier.align(Alignment.BottomCenter).padding(bottom = 42.dp),
+            color = Color.White.copy(alpha = 0.62f), fontSize = 10.sp,
+            fontWeight = FontWeight.Bold, letterSpacing = 3.sp
+        )
+    }
+}
+
+@Composable
+private fun TopNavigation(page: String, onNavigate: (String) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        BrandMark(34.dp)
+        BrandWordmark(25.sp)
         Spacer(Modifier.weight(1f))
         listOf("HOME", "MOVIES", "SEARCH", "MY LIST", "SIGN IN").forEach { item ->
             NavButton(item, page == item) { onNavigate(item) }
