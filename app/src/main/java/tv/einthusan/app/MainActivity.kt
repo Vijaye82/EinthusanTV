@@ -515,34 +515,67 @@ private fun SearchPage(
     genreFocus: FocusRequester, yearFocus: FocusRequester, resultsFocus: FocusRequester
 ) {
     PageHeading("Search", "Find films by title, cast, director or genre")
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        SearchField("Movie title or language", query, onQuery, Modifier.weight(1.4f), titleFocus, genreFocus)
-        SearchField("Actor", actor, onActor, Modifier.weight(1f), actorFocus, genreFocus)
-        SearchField("Director", director, onDirector, Modifier.weight(1f), directorFocus, genreFocus)
+    Column(
+        Modifier.fillMaxWidth().background(SurfaceDark, RoundedCornerShape(16.dp))
+            .border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(16.dp)).padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text("SEARCH YOUR WAY", color = Color(0xFFFF6972), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            SearchField("Movie title or language", query, onQuery, Modifier.weight(1.4f), titleFocus, genreFocus)
+            SearchField("Actor", actor, onActor, Modifier.weight(1f), actorFocus, genreFocus)
+            SearchField("Director", director, onDirector, Modifier.weight(1f), directorFocus, genreFocus)
+        }
+        Text("FILTER BY GENRE", color = TextMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+        FilterChips(listOf("All", "Action", "Drama", "Comedy", "Romance", "Thriller", "Family", "Adventure"), genre, upEntryFocus = titleFocus, downEntryFocus = yearFocus, firstChipFocusRequester = genreFocus, onSelect = onGenre)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+            Text("YEAR", color = TextMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.1.sp)
+            FilterChips(listOf("All", "2024", "2023", "2022"), year, upEntryFocus = genreFocus, downEntryFocus = resultsFocus, firstChipFocusRequester = yearFocus, onSelect = onYear)
+            Spacer(Modifier.weight(1f))
+            SecondaryButton(if (alphabetical) "A–Z ✓" else "Sort A–Z", onClick = { onAlphabetical(!alphabetical) })
+        }
     }
-    Text("Browse by genre", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-    FilterChips(listOf("All", "Action", "Drama", "Comedy", "Romance", "Thriller", "Family", "Adventure"), genre, upEntryFocus = titleFocus, downEntryFocus = yearFocus, firstChipFocusRequester = genreFocus, onSelect = onGenre)
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Year", color = TextMuted, fontSize = 12.sp)
-        FilterChips(listOf("All", "2024", "2023", "2022"), year, upEntryFocus = genreFocus, downEntryFocus = resultsFocus, firstChipFocusRequester = yearFocus, onSelect = onYear)
-        Spacer(Modifier.width(15.dp))
-        SecondaryButton(if (alphabetical) "A–Z ✓" else "Sort A–Z", onClick = { onAlphabetical(!alphabetical) })
-        Text("${movies.size} catalogue results", color = TextMuted, fontSize = 12.sp)
+    Row(Modifier.fillMaxWidth().padding(top = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text("Search results", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text("Browse matching films", color = TextMuted, fontSize = 11.sp)
+        }
+        Spacer(Modifier.weight(1f))
+        Text(movies.size.toString() + " titles", color = Color(0xFFFF6972), fontSize = 13.sp, fontWeight = FontWeight.Bold)
     }
     MovieShelf(movies, favourites, "search", focusRequesters, shelfStates, restoreFocusKey, onSelect, onToggleSaved, upEntryFocus = yearFocus, firstItemFocusRequester = resultsFocus)
 }
 
 @Composable
 private fun SearchField(label: String, value: String, onValue: (String) -> Unit, modifier: Modifier = Modifier, focusRequester: FocusRequester? = null, downEntryFocus: FocusRequester? = null) {
+    var focused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (focused) 1.015f else 1f,
+        animationSpec = spring(dampingRatio = 0.78f, stiffness = 420f),
+        label = "searchFieldFocusScale"
+    )
     OutlinedTextField(
-        value = value, onValueChange = onValue,
-        label = { Text(label, color = TextMuted, fontSize = 12.sp) },
-        singleLine = true, modifier = modifier
+        value = value,
+        onValueChange = onValue,
+        label = { Text(label, color = if (focused) Color.White else TextMuted, fontSize = 12.sp) },
+        singleLine = true,
+        modifier = modifier
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
-            .focusProperties { if (downEntryFocus != null) down = downEntryFocus }, shape = RoundedCornerShape(12.dp)
+            .focusProperties { if (downEntryFocus != null) down = downEntryFocus }
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .onFocusChanged { focused = it.isFocused },
+        shape = RoundedCornerShape(11.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = Color(0xFFFF5962),
+            unfocusedBorderColor = Color.White.copy(alpha = 0.18f),
+            focusedTextColor = Color.White,
+            unfocusedTextColor = Color.White,
+            cursorColor = Color(0xFFFF5962),
+            focusedContainerColor = Color(0xFF202020),
+            unfocusedContainerColor = Color(0xFF202020)
+        )
     )
 }
-
 @Composable
 private fun PageHeading(title: String, subtitle: String) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
