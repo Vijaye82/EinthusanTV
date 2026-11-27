@@ -358,19 +358,19 @@ private fun EinthusanTvApp() {
                                     onDetails = { returnFocusKey = null; selectedMovie = hero },
                                     playFocusRequester = homePlayFocusRequester
                                 )
-                                Text("Browse by language", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                                ShelfHeading("Browse by language", "Find cinema from across the region")
                                 FilterChips(languages, language, upEntryFocus = homePlayFocusRequester, downEntryFocus = trendingEntryFocus, firstChipFocusRequester = languageFilterEntryFocus) { language = it }
-                                Text("Trending now", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                ShelfHeading("Trending now", "Popular picks from the catalogue")
                                 MovieShelf(filtered.take(16), favourites, "home-trending", movieFocusRequesters, movieShelfStates, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title ->
                                     favourites = if (title in favourites) favourites - title else favourites + title
                                 }, upEntryFocus = languageFilterEntryFocus, downEntryFocus = genreFilterEntryFocus, firstItemFocusRequester = trendingEntryFocus)
-                                Text("Recently added", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                ShelfHeading("Recently added", "Fresh additions and recent releases")
                                 MovieShelf(filtered.sortedByDescending { it.year }.take(18), favourites, "home-recent", movieFocusRequesters, movieShelfStates, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title ->
                                     favourites = if (title in favourites) favourites - title else favourites + title
                                 }, upEntryFocus = trendingEntryFocus, downEntryFocus = genreFilterEntryFocus, firstItemFocusRequester = recentEntryFocus)
-                                Text("Explore by genre", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                ShelfHeading("Explore by genre", "Choose a mood for your next movie")
                                 FilterChips(genres, genre, upEntryFocus = recentEntryFocus, downEntryFocus = recommendationsEntryFocus, firstChipFocusRequester = genreFilterEntryFocus) { genre = it; page = "MOVIES" }
-                                Text("Your next favourite film", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                ShelfHeading("Your next favourite film", "More films selected from the catalogue")
                                 MovieShelf(filtered.drop(8).take(18), favourites, "home-recommendations", movieFocusRequesters, movieShelfStates, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title ->
                                     favourites = if (title in favourites) favourites - title else favourites + title
                                 }, upEntryFocus = genreFilterEntryFocus, firstItemFocusRequester = recommendationsEntryFocus)
@@ -576,7 +576,7 @@ private fun MovieShelf(movies: List<CatalogMovie>, favourites: Set<String>, shel
                 }
             }
         }
-        LazyRow(state = listState, modifier = Modifier.focusGroup(), horizontalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(vertical = 7.dp)) {
+        LazyRow(state = listState, modifier = Modifier.focusGroup(), horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(horizontal = 3.dp, vertical = 9.dp)) {
             itemsIndexed(movies, key = { _, movie -> movie.id }) { index, movie ->
                 val focusKey = shelfId + "|" + movie.id
                 val requester = remember(focusKey) {
@@ -599,7 +599,7 @@ private fun MovieCard(movie: CatalogMovie, saved: Boolean, focusRequester: Focus
         label = "posterFocusScale"
     )
     Column(
-        Modifier.width(166.dp)
+        Modifier.width(174.dp)
             .focusRequester(focusRequester)
             .focusProperties {
                 if (upEntryFocus != null) up = upEntryFocus
@@ -618,7 +618,7 @@ private fun MovieCard(movie: CatalogMovie, saved: Boolean, focusRequester: Focus
             .padding(9.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        PosterArtwork(movie, Modifier.fillMaxWidth().height(218.dp))
+        PosterArtwork(movie, Modifier.fillMaxWidth().height(230.dp))
         Text(movie.title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1)
         Text("${movie.language}  •  ${movie.year}", color = TextMuted, fontSize = 10.sp)
         Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
