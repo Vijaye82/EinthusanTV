@@ -505,16 +505,18 @@ private fun MovieShelf(movies: List<CatalogMovie>, favourites: Set<String>, shel
         LazyRow(modifier = Modifier.focusGroup(), horizontalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(vertical = 7.dp)) {
             items(movies, key = { it.id }) { index, movie ->
                 val focusKey = shelfId + "|" + movie.id
-                val requester = remember(focusKey) { focusRequesters.getOrPut(focusKey) { FocusRequester() } }
-                val shelfEntryRequester = if (index == 0) firstItemFocusRequester else null
-                MovieCard(movie, movie.title in favourites, requester, shelfEntryRequester, upEntryFocus, downEntryFocus, { onSelect(movie, focusKey) }, { onToggleSaved(movie.title) })
+                val requester = remember(focusKey) {
+                    if (index == 0 && firstItemFocusRequester != null) firstItemFocusRequester
+                    else focusRequesters.getOrPut(focusKey) { FocusRequester() }
+                }
+                MovieCard(movie, movie.title in favourites, requester, upEntryFocus, downEntryFocus, { onSelect(movie, focusKey) }, { onToggleSaved(movie.title) })
             }
         }
     }
 }
 
 @Composable
-private fun MovieCard(movie: CatalogMovie, saved: Boolean, focusRequester: FocusRequester, shelfEntryRequester: FocusRequester?, upEntryFocus: FocusRequester?, downEntryFocus: FocusRequester?, onSelect: () -> Unit, onToggleSaved: () -> Unit) {
+private fun MovieCard(movie: CatalogMovie, saved: Boolean, focusRequester: FocusRequester, upEntryFocus: FocusRequester?, downEntryFocus: FocusRequester?, onSelect: () -> Unit, onToggleSaved: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (focused) 1.055f else 1f,
@@ -524,7 +526,6 @@ private fun MovieCard(movie: CatalogMovie, saved: Boolean, focusRequester: Focus
     Column(
         Modifier.width(166.dp)
             .focusRequester(focusRequester)
-            .then(if (shelfEntryRequester != null) Modifier.focusRequester(shelfEntryRequester) else Modifier)
             .focusProperties {
                 if (upEntryFocus != null) up = upEntryFocus
                 if (downEntryFocus != null) down = downEntryFocus
