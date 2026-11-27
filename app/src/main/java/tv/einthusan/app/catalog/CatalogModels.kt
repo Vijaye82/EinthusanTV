@@ -7,6 +7,7 @@ package tv.einthusan.app.catalog
 data class Movie(
     val id: String,
     val title: String,
+    val einthusanId: String? = null,
     val language: String,
     val year: Int?,
     val genres: List<String> = emptyList(),
