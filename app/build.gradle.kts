@@ -9,6 +9,8 @@ android {
     compileSdk = 35
 
     defaultConfig {
+        val catalogBaseUrl = providers.gradleProperty("einthusanCatalogBaseUrl").orNull ?: "https://einthusantv-k9mh.onrender.com"
+        buildConfigField("String", "EINTHUSAN_CATALOG_BASE_URL", "\"$catalogBaseUrl\"")
         applicationId = "tv.einthusan.app"
         minSdk = 23
         targetSdk = 28
@@ -35,7 +37,7 @@ android {
         }
     }
 
-    buildFeatures { compose = true }
+    buildFeatures { compose = true; buildConfig = true }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
