@@ -52,11 +52,11 @@ import tv.einthusan.app.playback.EinthusanPlaybackRepository
 import tv.einthusan.app.playback.PlaybackRequest
 import tv.einthusan.app.playback.PlaybackResult
 
-private val Background = Color(0xFF090711)
-private val SurfaceDark = Color(0xFF171323)
-private val SurfaceRaised = Color(0xFF241B35)
-private val Purple = Color(0xFF9226D6)
-private val Magenta = Color(0xFFE00091)
+private val Background = Color(0xFF080808)
+private val SurfaceDark = Color(0xFF181818)
+private val SurfaceRaised = Color(0xFF292929)
+private val Purple = Color(0xFFE50914)
+private val Magenta = Color(0xFFE50914)
 private val TextMuted = Color(0xFFBDB5C9)
 
 private data class CatalogMovie(
@@ -269,27 +269,32 @@ private fun EinthusanTvApp() {
                             })
                         }
                         else -> {
-                            PageHeading("Welcome to EinthusanTV", "Discover South Asian cinema")
-                            Text("PICK A LANGUAGE", color = TextMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
-                            FilterChips(languages, language) { language = it }
                             if (catalogueMovies.isEmpty()) {
-                                EmptyState(
-                                    "Your cinema is getting ready",
-                                    catalogStatus
-                                )
+                                PageHeading("Welcome to EinthusanTV", "Discover South Asian cinema")
+                                EmptyState("Your cinema is getting ready", catalogStatus)
                             } else {
-                                Text("Featured for you", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                                MovieShelf(filtered.take(12), favourites, { selectedMovie = it }, { title ->
+                                val hero = filtered.firstOrNull() ?: catalogueMovies.first()
+                                FeaturedHero(
+                                    movie = hero,
+                                    onPlay = { selectedMovie = hero; playerOpen = true },
+                                    onDetails = { selectedMovie = hero }
+                                )
+                                Text("Browse by language", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                                FilterChips(languages, language) { language = it }
+                                Text("Trending now", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                MovieShelf(filtered.take(16), favourites, { selectedMovie = it }, { title ->
                                     favourites = if (title in favourites) favourites - title else favourites + title
                                 })
                                 Text("Recently added", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                                 MovieShelf(filtered.sortedByDescending { it.year }.take(18), favourites, { selectedMovie = it }, { title ->
                                     favourites = if (title in favourites) favourites - title else favourites + title
                                 })
-                                Text("Browse by genre", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                Text("Explore by genre", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                                 FilterChips(genres, genre) { genre = it; page = "MOVIES" }
-                                Text("Explore the full catalogue", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                                PrimaryButton("Browse all movies", { page = "MOVIES" })
+                                Text("Your next favourite film", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                MovieShelf(filtered.drop(8).take(18), favourites, { selectedMovie = it }, { title ->
+                                    favourites = if (title in favourites) favourites - title else favourites + title
+                                })
                             }
                         }
                     }
@@ -375,6 +380,38 @@ private fun TopNavigation(page: String, onNavigate: (String) -> Unit) {
 
 
 @Composable
+private fun FeaturedHero(movie: CatalogMovie, onPlay: () -> Unit, onDetails: () -> Unit) {
+    Box(Modifier.fillMaxWidth().height(310.dp).background(SurfaceDark, RoundedCornerShape(8.dp))) {
+        if (!movie.backgroundUrl.isNullOrBlank()) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current).data(movie.backgroundUrl).crossfade(true).build(),
+                contentDescription = movie.title + " featured artwork",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            PosterArtwork(movie, Modifier.fillMaxSize())
+        }
+        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(
+            listOf(Color(0xFF080808), Color(0xEE080808), Color(0x99080808), Color.Transparent)
+        )))
+        Column(
+            Modifier.align(Alignment.BottomStart).fillMaxWidth(0.72f).padding(start = 28.dp, bottom = 25.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp)
+        ) {
+            Text("EINTHUSAN COLLECTION", color = Color(0xFFFF5252), fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.6.sp)
+            Text(movie.title, color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Black, maxLines = 2)
+            Text("${movie.year}  •  ${movie.language}  •  ${movie.genre}", color = Color.White.copy(alpha = 0.88f), fontSize = 13.sp)
+            Text(movie.description, color = Color.White.copy(alpha = 0.82f), fontSize = 12.sp, maxLines = 2, lineHeight = 17.sp)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                PrimaryButton("▶  Play", onPlay)
+                SecondaryButton("ⓘ  More Info", onDetails)
+            }
+        }
+    }
+}
+
+@Composable
 private fun SearchPage(
     query: String, onQuery: (String) -> Unit, actor: String, onActor: (String) -> Unit,
     director: String, onDirector: (String) -> Unit, genre: String, onGenre: (String) -> Unit,
@@ -437,12 +474,12 @@ private fun MovieShelf(movies: List<CatalogMovie>, favourites: Set<String>, onSe
 private fun MovieCard(movie: CatalogMovie, saved: Boolean, onSelect: () -> Unit, onToggleSaved: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     Column(
-        Modifier.width(184.dp).background(SurfaceDark, RoundedCornerShape(13.dp))
+        Modifier.width(166.dp).background(Color.Transparent, RoundedCornerShape(8.dp))
             .border(if (focused) 3.dp else 1.dp, if (focused) Magenta else Color.White.copy(alpha = 0.08f), RoundedCornerShape(13.dp))
             .onFocusChanged { focused = it.isFocused }.focusable().padding(9.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        PosterArtwork(movie, Modifier.fillMaxWidth().height(145.dp))
+        PosterArtwork(movie, Modifier.fillMaxWidth().height(218.dp))
         Text(movie.title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1)
         Text("${movie.language}  •  ${movie.year}", color = TextMuted, fontSize = 10.sp)
         Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
