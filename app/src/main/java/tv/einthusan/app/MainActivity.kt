@@ -186,6 +186,9 @@ private fun EinthusanTvApp() {
     val signInEmailFocus = remember { FocusRequester() }
     val signInPasswordFocus = remember { FocusRequester() }
     val signInSubmitFocus = remember { FocusRequester() }
+    val detailsBackFocus = remember { FocusRequester() }
+    val detailsPlayFocus = remember { FocusRequester() }
+    val detailsSaveFocus = remember { FocusRequester() }
     var initialHomeFocusRequested by remember { mutableStateOf(false) }
     var favourites by remember {
         mutableStateOf(
@@ -226,6 +229,13 @@ private fun EinthusanTvApp() {
             delay(350)
             runCatching { homePlayFocusRequester.requestFocus() }
             initialHomeFocusRequested = true
+        }
+    }
+
+    LaunchedEffect(selectedMovie) {
+        if (selectedMovie != null && !playerOpen) {
+            delay(180)
+            runCatching { detailsPlayFocus.requestFocus() }
         }
     }
 
@@ -280,7 +290,10 @@ private fun EinthusanTvApp() {
                             onToggleSaved = {
                                 val title = selectedMovie!!.title
                                 favourites = if (title in favourites) favourites - title else favourites + title
-                            }
+                            },
+                            backFocus = detailsBackFocus,
+                            playFocus = detailsPlayFocus,
+                            saveFocus = detailsSaveFocus
                         )
                     } else when (page) {
                         "SEARCH" -> SearchPage(
@@ -637,7 +650,10 @@ private fun PosterArtwork(movie: CatalogMovie, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun MovieDetails(movie: CatalogMovie, saved: Boolean, onBack: () -> Unit, onPlay: () -> Unit, onToggleSaved: () -> Unit) {
+private fun MovieDetails(
+    movie: CatalogMovie, saved: Boolean, onBack: () -> Unit, onPlay: () -> Unit,
+    onToggleSaved: () -> Unit, backFocus: FocusRequester, playFocus: FocusRequester, saveFocus: FocusRequester
+) {
     Row(Modifier.fillMaxWidth().padding(top = 18.dp), horizontalArrangement = Arrangement.spacedBy(28.dp), verticalAlignment = Alignment.Top) {
         PosterArtwork(movie, Modifier.width(245.dp).height(340.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(13.dp)) {
@@ -648,12 +664,11 @@ private fun MovieDetails(movie: CatalogMovie, saved: Boolean, onBack: () -> Unit
             Text("CAST  •  ${movie.leadActor}", color = Color.White, fontSize = 14.sp)
             Text("DIRECTOR  •  ${movie.director}", color = Color.White, fontSize = 14.sp)
             Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                PrimaryButton("▶  Play", onPlay)
-                SecondaryButton(if (saved) "♥  In My List" else "+  My List", onToggleSaved)
-                SecondaryButton("Back", onBack)
+                SecondaryButton("Back", onBack, focusRequester = backFocus, rightFocus = playFocus)
+                PrimaryButton("▶  Play", onPlay, focusRequester = playFocus, leftFocus = backFocus, rightFocus = saveFocus)
+                SecondaryButton(if (saved) "♥  In My List" else "+  My List", onToggleSaved, focusRequester = saveFocus, leftFocus = playFocus)
             }
-            Text("No authorised stream is connected yet.", color = TextMuted, fontSize = 11.sp)
-        }
+         }
     }
 }
 
@@ -855,7 +870,10 @@ private fun ChoiceChip(label: String, active: Boolean, onClick: () -> Unit, focu
 }
 
 @Composable
-private fun PrimaryButton(label: String, onClick: () -> Unit, compact: Boolean = false, focusRequester: FocusRequester? = null) {
+private fun PrimaryButton(
+    label: String, onClick: () -> Unit, compact: Boolean = false,
+    focusRequester: FocusRequester? = null, leftFocus: FocusRequester? = null, rightFocus: FocusRequester? = null
+) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (focused) 1.06f else 1f,
@@ -866,6 +884,10 @@ private fun PrimaryButton(label: String, onClick: () -> Unit, compact: Boolean =
         onClick = onClick,
         modifier = Modifier
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+            .focusProperties {
+                if (leftFocus != null) left = leftFocus
+                if (rightFocus != null) right = rightFocus
+            }
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .border(
                 width = if (focused) 2.dp else 1.dp,
@@ -880,7 +902,10 @@ private fun PrimaryButton(label: String, onClick: () -> Unit, compact: Boolean =
 }
 
 @Composable
-private fun SecondaryButton(label: String, onClick: () -> Unit, compact: Boolean = false, focusRequester: FocusRequester? = null) {
+private fun SecondaryButton(
+    label: String, onClick: () -> Unit, compact: Boolean = false,
+    focusRequester: FocusRequester? = null, leftFocus: FocusRequester? = null, rightFocus: FocusRequester? = null
+) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (focused) 1.045f else 1f,
@@ -891,6 +916,10 @@ private fun SecondaryButton(label: String, onClick: () -> Unit, compact: Boolean
         onClick = onClick,
         modifier = Modifier
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+            .focusProperties {
+                if (leftFocus != null) left = leftFocus
+                if (rightFocus != null) right = rightFocus
+            }
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .border(
                 width = if (focused) 2.dp else 1.dp,
