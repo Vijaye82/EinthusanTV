@@ -181,6 +181,9 @@ private fun EinthusanTvApp() {
     val searchNavFocus = remember { FocusRequester() }
     val myListNavFocus = remember { FocusRequester() }
     val signInNavFocus = remember { FocusRequester() }
+    val signInEmailFocus = remember { FocusRequester() }
+    val signInPasswordFocus = remember { FocusRequester() }
+    val signInSubmitFocus = remember { FocusRequester() }
     var initialHomeFocusRequested by remember { mutableStateOf(false) }
     var favourites by remember {
         mutableStateOf(
@@ -266,7 +269,7 @@ private fun EinthusanTvApp() {
                         selectedMovie = null
                         playerOpen = false
                     }, homeNavFocus, moviesNavFocus, searchNavFocus, myListNavFocus, signInNavFocus,
-                        homePlayFocusRequester, exploreLanguageEntryFocus, searchTitleFocus, myListEntryFocus)
+                        homePlayFocusRequester, exploreLanguageEntryFocus, searchTitleFocus, myListEntryFocus, signInEmailFocus)
                     if (selectedMovie != null) {
                         MovieDetails(
                             selectedMovie!!, selectedMovie!!.title in favourites,
@@ -289,7 +292,12 @@ private fun EinthusanTvApp() {
                         "MY LIST" -> {
                             PageHeading("My List", "Your saved Einthusan films")
                             val saved = catalogueMovies.filter { it.title in favourites }
-                            if (saved.isEmpty()) EmptyState("Your list is empty", "Open a title and choose + My List to save it here.")
+                            if (saved.isEmpty()) EmptyState(
+                                "Your list is empty",
+                                "Discover films in Explore Movies, then save a title to build your personal watchlist.",
+                                actionLabel = "Browse movies",
+                                onAction = { page = "MOVIES" }
+                            )
                             else MovieShelf(saved, favourites, "my-list", movieFocusRequesters, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title -> favourites = favourites - title }, firstItemFocusRequester = myListEntryFocus)
                         }
                         "SIGN IN" -> SignInPage(
@@ -298,7 +306,10 @@ private fun EinthusanTvApp() {
                                 accountState = AccountState.SigningIn
                                 scope.launch { accountState = accountRepository.signIn(SignInRequest(email, password.toCharArray())) }
                             },
-                            onSignOut = { scope.launch { accountRepository.signOut(); accountState = AccountState.SignedOut } }
+                            onSignOut = { scope.launch { accountRepository.signOut(); accountState = AccountState.SignedOut } },
+                            emailFocus = signInEmailFocus,
+                            passwordFocus = signInPasswordFocus,
+                            submitFocus = signInSubmitFocus
                         )
                         "MOVIES" -> {
                             PageHeading("Explore Movies", "Browse the catalogue by language, genre and release year")
@@ -423,12 +434,12 @@ private fun TopNavigation(
     page: String, onNavigate: (String) -> Unit,
     homeNav: FocusRequester, moviesNav: FocusRequester, searchNav: FocusRequester,
     myListNav: FocusRequester, signInNav: FocusRequester,
-    homeEntry: FocusRequester, moviesEntry: FocusRequester, searchEntry: FocusRequester, myListEntry: FocusRequester
+    homeEntry: FocusRequester, moviesEntry: FocusRequester, searchEntry: FocusRequester, myListEntry: FocusRequester, signInEntry: FocusRequester
 ) {
     val items = listOf(
         Triple("HOME", homeNav, homeEntry), Triple("MOVIES", moviesNav, moviesEntry),
         Triple("SEARCH", searchNav, searchEntry), Triple("MY LIST", myListNav, myListEntry),
-        Triple("SIGN IN", signInNav, null)
+        Triple("SIGN IN", signInNav, signInEntry)
     )
     Row(Modifier.focusGroup(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         BrandMark(34.dp)
@@ -642,7 +653,10 @@ private fun MovieDetails(movie: CatalogMovie, saved: Boolean, onBack: () -> Unit
 private fun SignInPage(
     state: AccountState,
     onSignIn: (String, String) -> Unit,
-    onSignOut: () -> Unit
+    onSignOut: () -> Unit,
+    emailFocus: FocusRequester,
+    passwordFocus: FocusRequester,
+    submitFocus: FocusRequester
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -665,10 +679,10 @@ private fun SignInPage(
                 }
                 else -> {
                     Text("Use your existing Einthusan account. Your password is sent only to Einthusan over HTTPS and is not saved by the app.", color = TextMuted, fontSize = 13.sp)
-                    OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("Password") }, singleLine = true, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, singleLine = true, modifier = Modifier.fillMaxWidth().focusRequester(emailFocus).focusProperties { down = passwordFocus })
+                    OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("Password") }, singleLine = true, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth().focusRequester(passwordFocus).focusProperties { up = emailFocus; down = submitFocus })
                     if (state is AccountState.Error) Text(state.message, color = Color(0xFFFF8A9A), fontSize = 12.sp)
-                    PrimaryButton(if (state is AccountState.SigningIn) "Signing in…" else "Sign in", { if (state !is AccountState.SigningIn) onSignIn(email, password) })
+                    PrimaryButton(if (state is AccountState.SigningIn) "Signing in…" else "Sign in", { if (state !is AccountState.SigningIn) onSignIn(email, password) }, focusRequester = submitFocus)
                 }
             }
         }
@@ -676,10 +690,11 @@ private fun SignInPage(
 }
 
 @Composable
-private fun EmptyState(title: String, message: String) {
-    Column(Modifier.fillMaxWidth().background(SurfaceDark, RoundedCornerShape(13.dp)).padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+private fun EmptyState(title: String, message: String, actionLabel: String? = null, onAction: (() -> Unit)? = null) {
+    Column(Modifier.fillMaxWidth().background(SurfaceDark, RoundedCornerShape(13.dp)).padding(18.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
         Text(title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
         Text(message, color = TextMuted, fontSize = 12.sp, lineHeight = 18.sp)
+        if (actionLabel != null && onAction != null) SecondaryButton(actionLabel, onAction)
     }
 }
 
