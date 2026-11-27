@@ -34,6 +34,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,6 +43,11 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.key
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -117,6 +123,8 @@ private fun StartupDiagnosticScreen(report: String, onClear: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val reportScrollState = rememberScrollState()
+    val submitFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { submitFocusRequester.requestFocus() }
     var submissionMessage by remember { mutableStateOf<String?>(null) }
     val headline = report.lineSequence().firstOrNull {
         it.contains("FATAL EXCEPTION", true) || it.contains("Caused by:", true) ||
@@ -157,14 +165,30 @@ private fun StartupDiagnosticScreen(report: String, onClear: () -> Unit) {
     MaterialTheme {
         Surface(Modifier.fillMaxSize(), color = Background) {
             Column(
-                Modifier.fillMaxSize().padding(28.dp).verticalScroll(reportScrollState),
+                Modifier.fillMaxSize().padding(28.dp)
+                    .onPreviewKeyEvent { event ->
+                        if (event.type == KeyEventType.KeyDown) {
+                            when (event.key) {
+                                Key.DirectionDown -> {
+                                    scope.launch { reportScrollState.animateScrollBy(420f) }
+                                    true
+                                }
+                                Key.DirectionUp -> {
+                                    scope.launch { reportScrollState.animateScrollBy(-420f) }
+                                    true
+                                }
+                                else -> false
+                            }
+                        } else false
+                    }
+                    .verticalScroll(reportScrollState),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text("EinthusanTV crash report", color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.Bold)
                 Text("Review the diagnostic and submit it to the EinthusanTV GitHub issue tracker. Nothing is uploaded automatically.", color = TextMuted, fontSize = 14.sp)
                 Text("CRASH SUMMARY", color = Color(0xFFFF6972), fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.5.sp)
                 Text(headline, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold, lineHeight = 21.sp)
-                Button(onClick = { openGitHubIssueForm() }) {
+                Button(modifier = Modifier.focusRequester(submitFocusRequester), onClick = { openGitHubIssueForm() }) {
                     Text("Open GitHub crash report form")
                 }
                 submissionMessage?.let { Text(it, color = Color(0xFFB8D7FF), fontSize = 12.sp, lineHeight = 17.sp) }
