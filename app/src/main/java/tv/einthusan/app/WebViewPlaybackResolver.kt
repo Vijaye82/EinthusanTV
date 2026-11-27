@@ -71,7 +71,6 @@ internal class WebViewPlaybackResolver(private val context: Context) : PlaybackR
                     attempts++
                     webView.evaluateJavascript(
                         """(function() {
-                            var video = document.querySelector('video');
                             var player = document.querySelector('#UIVideoPlayer');
                             var raw = player && player.getAttribute('data-mp4-link');
                             var video = document.querySelector('video');
@@ -81,7 +80,8 @@ internal class WebViewPlaybackResolver(private val context: Context) : PlaybackR
                                 if (child) source = child.src;
                             }
                             var button = document.querySelector('#download-content, a[download]');
-                            return raw || source || (button && button.href) || '';
+                            var value = raw || source || (button && button.href) || '';
+                            return value ? new URL(value, document.baseURI).href : '';
                         })();"""
                     ) { raw ->
                         if (finished) return@evaluateJavascript

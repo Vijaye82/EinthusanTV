@@ -324,14 +324,10 @@ private fun EinthusanSplashScreen() {
             Box(contentAlignment = Alignment.Center) {
                 Box(Modifier.size(150.dp).background(Purple.copy(alpha = glow * 0.22f), RoundedCornerShape(38.dp)))
                 Image(
-                    painter = painterResource(id = R.drawable.einthusantv_logo),
+                    painter = painterResource(id = R.drawable.einthusantv_icon),
                     contentDescription = "EinthusanTV logo",
                     modifier = Modifier.size(112.dp).graphicsLayer { scaleX = pulse; scaleY = pulse }
                 )
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Einthusan", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Black)
-                Text("TV", color = Magenta, fontSize = 34.sp, fontWeight = FontWeight.Black)
             }
             Text("YOUR CINEMA. YOUR SCREEN.", color = TextMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
             Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -568,6 +564,7 @@ private fun PlayerScreen(movie: CatalogMovie, onBack: () -> Unit) {
     var loading by remember(movie.id) { mutableStateOf(true) }
     var retry by remember(movie.id) { mutableIntStateOf(0) }
     var playerError by remember(movie.id) { mutableStateOf<String?>(null) }
+    var isBuffering by remember(movie.id) { mutableStateOf(false) }
 
     LaunchedEffect(movie.id, retry) {
         loading = true
@@ -591,7 +588,11 @@ private fun PlayerScreen(movie: CatalogMovie, onBack: () -> Unit) {
     }
     DisposableEffect(player) {
         val listener = object : androidx.media3.common.Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                isBuffering = playbackState == androidx.media3.common.Player.STATE_BUFFERING
+            }
             override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                isBuffering = false
                 var cause: Throwable? = error
                 var httpCode: Int? = null
                 var responseMessage: String? = null
@@ -653,6 +654,12 @@ private fun PlayerScreen(movie: CatalogMovie, onBack: () -> Unit) {
                 update = { it.player = player },
                 modifier = Modifier.fillMaxSize()
             )
+            if (isBuffering && playerError == null) {
+                Row(Modifier.align(Alignment.Center).background(Color(0xCC10091A), RoundedCornerShape(12.dp)).padding(18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    CircularProgressIndicator(color = Magenta, modifier = Modifier.size(24.dp), strokeWidth = 3.dp)
+                    Text("Connecting to video…", color = Color.White, fontSize = 14.sp)
+                }
+            }
             if (playerError != null) {
                 Column(
                     Modifier.align(Alignment.Center).fillMaxWidth(0.78f)
