@@ -665,11 +665,29 @@ private fun PlayerScreen(movie: CatalogMovie, accountRepository: EinthusanAccoun
 
 @Composable
 private fun NavButton(label: String, active: Boolean, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (focused) 1.07f else 1f,
+        animationSpec = spring(dampingRatio = 0.76f, stiffness = 460f),
+        label = "navFocusScale"
+    )
     Button(
         onClick = onClick,
+        modifier = Modifier
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .border(
+                width = if (focused) 2.dp else 1.dp,
+                color = if (focused) Color.White else if (active) Color(0xFFFF5962) else Color.Transparent,
+                shape = RoundedCornerShape(22.dp)
+            )
+            .onFocusChanged { focused = it.isFocused },
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (active) Purple else Color.Transparent,
-            contentColor = if (active) Color.White else TextMuted
+            containerColor = when {
+                active -> Purple
+                focused -> Color(0xFF383838)
+                else -> Color.Transparent
+            },
+            contentColor = Color.White
         ),
         shape = RoundedCornerShape(22.dp),
         contentPadding = PaddingValues(horizontal = 13.dp, vertical = 7.dp)
@@ -678,10 +696,30 @@ private fun NavButton(label: String, active: Boolean, onClick: () -> Unit) {
 
 @Composable
 private fun ChoiceChip(label: String, active: Boolean, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (focused) 1.06f else 1f,
+        animationSpec = spring(dampingRatio = 0.78f, stiffness = 480f),
+        label = "filterFocusScale"
+    )
     Button(
-        onClick = onClick, modifier = Modifier.height(39.dp), shape = RoundedCornerShape(10.dp),
+        onClick = onClick,
+        modifier = Modifier.height(39.dp)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .border(
+                width = if (focused) 2.dp else 1.dp,
+                color = if (focused) Color.White else if (active) Color(0xFFFF5962) else Color.Transparent,
+                shape = RoundedCornerShape(10.dp)
+            )
+            .onFocusChanged { focused = it.isFocused },
+        shape = RoundedCornerShape(10.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (active) Purple else SurfaceRaised, contentColor = Color.White,
+            containerColor = when {
+                active -> Purple
+                focused -> Color(0xFF414141)
+                else -> SurfaceRaised
+            },
+            contentColor = Color.White
         ),
         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 5.dp)
     ) { Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold) }
