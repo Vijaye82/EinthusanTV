@@ -243,16 +243,15 @@ private fun EinthusanTvApp() {
                             }
                         }
                         else -> {
-                            PageHeading("Welcome to EinthusanTV", "Your Einthusan catalogue will appear here")
-                            Text("Browse by language", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                            FilterChips(languages, language) { language = it }
-                            when {
-                                catalogueLoading -> EmptyState("Loading Einthusan catalogue…", "Connecting to the live Tamil movie listings.")
-                                catalogueMovies.isNotEmpty() -> MovieShelf(filtered, favourites, { selectedMovie = it }, { title ->
-                                    favourites = if (title in favourites) favourites - title else favourites + title
-                                })
-                                else -> EmptyState("Catalogue unavailable", catalogueError ?: "No titles were returned.")
-                            }
+                            HomeShowcase(
+                                movies = catalogueMovies,
+                                favourites = favourites,
+                                loading = catalogueLoading,
+                                error = catalogueError,
+                                onBrowse = { page = "MOVIES" },
+                                onSelect = { selectedMovie = it },
+                                onToggleSaved = { title -> favourites = if (title in favourites) favourites - title else favourites + title }
+                            )
                         }
                     }
                 }
@@ -317,6 +316,46 @@ private fun TopNavigation(page: String, onNavigate: (String) -> Unit) {
     }
 }
 
+
+@Composable
+private fun HomeShowcase(
+    movies: List<CatalogMovie>, favourites: Set<String>, loading: Boolean, error: String?,
+    onBrowse: () -> Unit, onSelect: (CatalogMovie) -> Unit, onToggleSaved: (String) -> Unit
+) {
+    val featured = movies.firstOrNull()
+    Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+        if (featured != null) {
+            Box(Modifier.fillMaxWidth().height(260.dp).background(SurfaceDark, RoundedCornerShape(18.dp))) {
+                if (featured.posterUrl.isNotBlank()) AsyncImage(
+                    model = featured.posterUrl, contentDescription = featured.title,
+                    contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()
+                )
+                Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Background.copy(alpha = 0.98f), Background.copy(alpha = 0.78f), Color.Transparent))))
+                Column(Modifier.align(Alignment.CenterStart).fillMaxWidth(0.62f).padding(22.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Text("FEATURED MOVIE", color = Color(0xFFFFA9E5), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
+                    Text(featured.title, color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Black)
+                    Text(listOf(featured.language, featured.year, featured.genre).filter { it.isNotBlank() }.joinToString("  •  "), color = TextMuted, fontSize = 12.sp)
+                    if (featured.description.isNotBlank()) Text(featured.description, color = Color.White, fontSize = 13.sp, maxLines = 2)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PrimaryButton("▶  Details", { onSelect(featured) })
+                        SecondaryButton("Browse Movies", onBrowse)
+                    }
+                }
+            }
+            Text("New Releases", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+            MovieShelf(movies, favourites, onSelect, onToggleSaved)
+        } else if (loading) {
+            EmptyState("Loading Einthusan catalogue…", "Fetching live movies and artwork.")
+        } else {
+            EmptyState("Catalogue unavailable", error ?: "No titles were returned.")
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("Browse by Language", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            SecondaryButton("All Movies  →", onBrowse)
+        }
+        Text("Choose a language from Movies to explore its catalogue.", color = TextMuted, fontSize = 12.sp)
+    }
+}
 
 @Composable
 private fun SearchPage(
@@ -417,21 +456,31 @@ private fun PosterArtwork(movie: CatalogMovie, modifier: Modifier = Modifier) {
 
 @Composable
 private fun MovieDetails(movie: CatalogMovie, saved: Boolean, onBack: () -> Unit, onPlay: () -> Unit, onToggleSaved: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(top = 18.dp), horizontalArrangement = Arrangement.spacedBy(28.dp), verticalAlignment = Alignment.Top) {
-        PosterArtwork(movie, Modifier.width(245.dp).height(340.dp))
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(13.dp)) {
+    Box(Modifier.fillMaxWidth().height(440.dp).padding(top = 10.dp)) {
+        if (movie.posterUrl.isNotBlank()) {
+            AsyncImage(
+                model = movie.posterUrl, contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Background.copy(alpha = 0.98f), Background.copy(alpha = 0.82f), Color.Transparent))))
+        Column(
+            Modifier.align(Alignment.CenterStart).fillMaxWidth(0.72f).padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             Text("MOVIE DETAILS", color = Color(0xFFFFA9E5), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
             Text(movie.title, color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold)
-            Text("${movie.language}  •  ${movie.year}  •  ${movie.genre}", color = Color(0xFFFFA9E5), fontSize = 15.sp)
-            Text(movie.description, color = TextMuted, fontSize = 17.sp, lineHeight = 25.sp)
-            Text("CAST  •  ${movie.leadActor}", color = Color.White, fontSize = 14.sp)
-            Text("DIRECTOR  •  ${movie.director}", color = Color.White, fontSize = 14.sp)
+            Text(listOf(movie.language, movie.year, movie.genre).filter { it.isNotBlank() }.joinToString("  •  "), color = Color(0xFFFFA9E5), fontSize = 14.sp)
+            if (movie.description.isNotBlank()) Text(movie.description, color = Color.White, fontSize = 15.sp, lineHeight = 22.sp, maxLines = 4)
+            if (movie.leadActor.isNotBlank()) Text("CAST  •  ${movie.leadActor}", color = Color.White, fontSize = 13.sp)
+            if (movie.director.isNotBlank()) Text("DIRECTOR  •  ${movie.director}", color = Color.White, fontSize = 13.sp)
             Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                 PrimaryButton("▶  Play", onPlay)
-                SecondaryButton(if (saved) "♥  In My List" else "+  My List", onToggleSaved)
+                SecondaryButton(if (saved) "♥  My List" else "+  My List", onToggleSaved)
                 SecondaryButton("Back", onBack)
             }
-            Text("No authorised stream is connected yet.", color = TextMuted, fontSize = 11.sp)
+            Text("Playback connection is the next integration stage.", color = TextMuted, fontSize = 11.sp)
         }
     }
 }
