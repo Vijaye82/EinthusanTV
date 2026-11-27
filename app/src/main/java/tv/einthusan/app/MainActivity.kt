@@ -206,7 +206,7 @@ private fun EinthusanTvApp() {
             } else {
                 AppUpdateChecker()
             if (playerOpen && selectedMovie != null) {
-                PlayerScreen(selectedMovie!!, onBack = { playerOpen = false })
+                PlayerScreen(selectedMovie!!, accountRepository, onBack = { playerOpen = false })
             } else {
                 Column(
                     Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 42.dp, vertical = 22.dp),
@@ -542,10 +542,11 @@ private fun EmptyState(title: String, message: String) {
 }
 
 @Composable
-private fun PlayerScreen(movie: CatalogMovie, onBack: () -> Unit) {
+private fun PlayerScreen(movie: CatalogMovie, accountRepository: EinthusanAccountRepository, onBack: () -> Unit) {
     val context = LocalContext.current
     val player = remember(context) { ExoPlayer.Builder(context).build().apply { playWhenReady = false } }
-    var playbackStatus by remember(movie.id) { mutableStateOf("Finding an authorised stream…") }
+    var playbackStatus by remember(movie.id) { mutableStateOf("Checking your Einthusan account and finding a stream…") }
+    var quality by remember(movie.id) { mutableStateOf(PlaybackRequest.Quality.AUTO) }
     DisposableEffect(player) { onDispose { player.release() } }
 
     LaunchedEffect(movie.id) {
