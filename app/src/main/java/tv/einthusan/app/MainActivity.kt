@@ -296,7 +296,8 @@ private fun EinthusanTvApp() {
                                 "Your list is empty",
                                 "Discover films in Explore Movies, then save a title to build your personal watchlist.",
                                 actionLabel = "Browse movies",
-                                onAction = { page = "MOVIES" }
+                                onAction = { page = "MOVIES" },
+                                actionFocusRequester = myListEntryFocus
                             )
                             else MovieShelf(saved, favourites, "my-list", movieFocusRequesters, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title -> favourites = favourites - title }, firstItemFocusRequester = myListEntryFocus)
                         }
@@ -690,11 +691,14 @@ private fun SignInPage(
 }
 
 @Composable
-private fun EmptyState(title: String, message: String, actionLabel: String? = null, onAction: (() -> Unit)? = null) {
+private fun EmptyState(
+    title: String, message: String, actionLabel: String? = null,
+    onAction: (() -> Unit)? = null, actionFocusRequester: FocusRequester? = null
+) {
     Column(Modifier.fillMaxWidth().background(SurfaceDark, RoundedCornerShape(13.dp)).padding(18.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
         Text(title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
         Text(message, color = TextMuted, fontSize = 12.sp, lineHeight = 18.sp)
-        if (actionLabel != null && onAction != null) SecondaryButton(actionLabel, onAction)
+        if (actionLabel != null && onAction != null) SecondaryButton(actionLabel, onAction, focusRequester = actionFocusRequester)
     }
 }
 
@@ -869,7 +873,7 @@ private fun PrimaryButton(label: String, onClick: () -> Unit, compact: Boolean =
 }
 
 @Composable
-private fun SecondaryButton(label: String, onClick: () -> Unit, compact: Boolean = false) {
+private fun SecondaryButton(label: String, onClick: () -> Unit, compact: Boolean = false, focusRequester: FocusRequester? = null) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (focused) 1.045f else 1f,
@@ -879,6 +883,7 @@ private fun SecondaryButton(label: String, onClick: () -> Unit, compact: Boolean
     Button(
         onClick = onClick,
         modifier = Modifier
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .border(
                 width = if (focused) 2.dp else 1.dp,
