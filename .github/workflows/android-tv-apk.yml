@@ -34,7 +34,6 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          CRASH_REPORT_URL: ${{ vars.CRASH_REPORT_URL }}
         run: |
           mkdir -p release
           if [ -n "$ANDROID_KEYSTORE_ENCRYPTED_BASE64" ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ]; then
@@ -42,7 +41,7 @@ jobs:
             export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/einthusan-release.jks"
             export ANDROID_KEY_ALIAS="${ANDROID_KEY_ALIAS:-einthusan-tv}"
             export ANDROID_KEY_PASSWORD="${ANDROID_KEY_PASSWORD:-$ANDROID_KEYSTORE_PASSWORD}"
-            gradle --no-daemon :app:assembleRelease -x lintVitalAnalyzeRelease -PversionCode=${{ github.run_number }} -PcrashReportUrl="$CRASH_REPORT_URL"
+            gradle --no-daemon :app:assembleRelease -x lintVitalAnalyzeRelease -PversionCode=${{ github.run_number }}
             cp app/build/outputs/apk/release/app-release.apk release/EinthusanTV-preview.apk
             echo "Built stable-key signed APK."
           else
