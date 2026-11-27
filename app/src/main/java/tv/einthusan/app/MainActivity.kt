@@ -41,7 +41,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -721,7 +720,6 @@ private fun SearchField(label: String, value: String, onValue: (String) -> Unit,
         singleLine = true,
         modifier = modifier
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
-            .focusProperties { if (downEntryFocus != null) down = downEntryFocus }
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .onFocusChanged { focused = it.isFocused },
         shape = RoundedCornerShape(11.dp),
@@ -794,10 +792,6 @@ private fun MovieCard(movie: CatalogMovie, saved: Boolean, focusRequester: Focus
     Column(
         Modifier.width(205.dp)
             .focusRequester(focusRequester)
-            .focusProperties {
-                if (upEntryFocus != null) up = upEntryFocus
-                if (downEntryFocus != null) down = downEntryFocus
-            }
             .focusGroup()
              .graphicsLayer {
                 scaleX = scale
@@ -1029,7 +1023,7 @@ private fun SignInPage(
                         OutlinedTextField(
                             value = email, onValueChange = { email = it },
                             label = { Text("Email address") }, singleLine = true,
-                            modifier = Modifier.fillMaxWidth().focusRequester(emailFocus).focusProperties { down = passwordFocus },
+                            modifier = Modifier.fillMaxWidth().focusRequester(emailFocus),
                             shape = RoundedCornerShape(11.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = Color(0xFFFF5962), unfocusedBorderColor = Color.White.copy(alpha = 0.18f),
@@ -1042,7 +1036,7 @@ private fun SignInPage(
                             value = password, onValueChange = { password = it },
                             label = { Text("Password") }, singleLine = true,
                             visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
-                            modifier = Modifier.fillMaxWidth().focusRequester(passwordFocus).focusProperties { up = emailFocus; down = submitFocus },
+                            modifier = Modifier.fillMaxWidth().focusRequester(passwordFocus),
                             shape = RoundedCornerShape(11.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = Color(0xFFFF5962), unfocusedBorderColor = Color.White.copy(alpha = 0.18f),
@@ -1159,11 +1153,6 @@ private fun NavButton(
         onClick = onClick,
         modifier = Modifier
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
-            .focusProperties {
-                if (leftFocus != null) left = leftFocus
-                if (rightFocus != null) right = rightFocus
-                if (downFocus != null) down = downFocus
-            }
             .graphicsLayer { scaleX = scale; scaleY = scale; shadowElevation = if (focused) 9f else 0f }
             .border(
                 width = if (focused) 2.dp else if (active) 1.dp else 1.dp,
@@ -1197,10 +1186,6 @@ private fun ChoiceChip(label: String, active: Boolean, onClick: () -> Unit, focu
         onClick = onClick,
         modifier = Modifier.height(42.dp)
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
-            .focusProperties {
-                if (upEntryFocus != null) up = upEntryFocus
-                if (downEntryFocus != null) down = downEntryFocus
-            }
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
@@ -1246,10 +1231,6 @@ private fun PrimaryButton(
         onClick = onClick,
         modifier = Modifier
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
-            .focusProperties {
-                if (leftFocus != null) left = leftFocus
-                if (rightFocus != null) right = rightFocus
-            }
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .border(
                 width = if (focused) 2.dp else 1.dp,
@@ -1278,10 +1259,6 @@ private fun SecondaryButton(
         onClick = onClick,
         modifier = Modifier
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
-            .focusProperties {
-                if (leftFocus != null) left = leftFocus
-                if (rightFocus != null) right = rightFocus
-            }
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .border(
                 width = if (focused) 2.dp else 1.dp,
