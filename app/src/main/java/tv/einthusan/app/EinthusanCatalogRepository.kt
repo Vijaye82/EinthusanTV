@@ -113,30 +113,41 @@ internal class EinthusanCatalogRepository(private val baseUrl: String = "https:/
 
     private fun findPoster(card: Element, link: Element): String {
         val candidates = mutableListOf<Pair<Int, String>>()
-        val elements = (sequenceOf(card, link) + card.select("*").asSequence()).distinct()
-        for (element in elements) {
-            val classes = (element.className() + " " + element.id()).lowercase()
-            val cast = classes.contains("cast") || classes.contains("actor") || classes.contains("artist")
-            for (attr in listOf("data-poster", "data-image", "data-original", "data-src", "data-lazy-src",
-                "data-bg", "data-background", "poster", "src", "data-srcset", "srcset")) {
+
+        fun collect(element: Element, baseScore: Int) {
+            // Ignore cast/profile images: those links point to image/CDN or person pages,
+            // not back to the movie's own watch page.
+            val ownerLink = element.closest("a[href]")
+            if (ownerLink != null && ownerLink !== link &&
+                !ownerLink.attr("href").contains("/movie/watch/", true)) return
+
+            for (attr in listOf("data-poster", "data-image", "data-original", "data-src",
+                "data-lazy-src", "data-bg", "data-background", "poster", "src")) {
                 val raw = element.attr(attr).trim()
-                val candidate = if (attr.endsWith("srcset")) raw.split(",").firstOrNull()?.trim()?.substringBefore(" ") ?: "" else raw
-                val absolute = element.absUrl(attr).ifBlank { candidate }
-                if (absolute.startsWith("http")) {
-                    val score = when {
-                        cast -> 0
-                        classes.contains("poster") || classes.contains("cover") || classes.contains("thumb") -> 110
-                        attr.contains("poster") || attr.contains("background") || attr == "data-bg" -> 100
-                        element.tagName() == "img" && element.parent() == card -> 90
-                        element.tagName() == "img" -> 60
-                        else -> 20
-                    }
-                    candidates += score to absolute
+                val url = element.absUrl(attr).ifBlank { raw }
+                if (url.startsWith("https://") || url.startsWith("http://")) {
+                    candidates += baseScore to url
                 }
             }
-            val css = Regex("""url\(\s*['"]?(https?://[^)'"]+)""", RegexOption.IGNORE_CASE).find(element.attr("style"))?.groupValues?.getOrNull(1)
-            if (!css.isNullOrBlank()) candidates += (if (classes.contains("poster") || classes.contains("cover")) 120 else 70) to css
+            val css = Regex("""url\\(\\s*['"]?(https?://[^)'"]+)""", RegexOption.IGNORE_CASE)
+                .find(element.attr("style"))?.groupValues?.getOrNull(1)
+            if (!css.isNullOrBlank()) candidates += baseScore to css
         }
+
+        // Highest confidence: artwork inside the actual movie-watch anchor.
+        collect(link, 300)
+        link.select("img, picture, source, [style*=background], [data-bg], [data-background]")
+            .forEach { collect(it, 290) }
+
+        // Next: explicitly named poster/cover artwork in this movie card.
+        card.select("[class*=poster], [id*=poster], [class*=cover], [id*=cover]")
+            .forEach { container ->
+                collect(container, 240)
+                container.select("img, picture, source, [style*=background], [data-bg], [data-background]")
+                    .forEach { collect(it, 230) }
+            }
+
+        // Do not scan every image in the card: cast portraits live in the same card.
         return candidates.maxByOrNull { it.first }?.second.orEmpty()
     }
 
