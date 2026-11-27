@@ -688,7 +688,6 @@ private fun NavButton(label: String, active: Boolean, onClick: () -> Unit) {
     Button(
         onClick = onClick,
         modifier = Modifier
-            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .border(
                 width = if (focused) 2.dp else 1.dp,
@@ -751,6 +750,7 @@ private fun PrimaryButton(label: String, onClick: () -> Unit, compact: Boolean =
     Button(
         onClick = onClick,
         modifier = Modifier
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .border(
                 width = if (focused) 2.dp else 1.dp,
