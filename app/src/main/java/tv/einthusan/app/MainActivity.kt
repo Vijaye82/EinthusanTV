@@ -36,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
@@ -44,6 +45,12 @@ import coil.request.ImageRequest
 import androidx.compose.ui.layout.ContentScale
 import tv.einthusan.app.catalog.CatalogResult
 import tv.einthusan.app.catalog.EinthusanCatalogRepository
+import tv.einthusan.app.account.AccountState
+import tv.einthusan.app.account.SignInRequest
+import tv.einthusan.app.account.EinthusanAccountRepository
+import tv.einthusan.app.playback.EinthusanPlaybackRepository
+import tv.einthusan.app.playback.PlaybackRequest
+import tv.einthusan.app.playback.PlaybackResult
 
 private val Background = Color(0xFF090711)
 private val SurfaceDark = Color(0xFF171323)
@@ -124,6 +131,9 @@ private fun StartupDiagnosticScreen(report: String, onClear: () -> Unit) {
 @Composable
 private fun EinthusanTvApp() {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val accountRepository = remember { EinthusanAccountRepository() }
+    var accountState by remember { mutableStateOf<AccountState>(AccountState.SignedOut) }
     val languages = listOf("All", "Tamil", "Telugu", "Hindi", "Malayalam", "Kannada", "Bengali", "Punjabi", "Marathi")
     val genres = listOf("All", "Action", "Drama", "Comedy", "Romance", "Thriller", "Family", "Adventure")
     var catalogueMovies by remember { mutableStateOf(emptyList<CatalogMovie>()) }
@@ -147,6 +157,7 @@ private fun EinthusanTvApp() {
 
 
     LaunchedEffect(Unit) {
+        accountState = accountRepository.currentState()
         when (val result = EinthusanCatalogRepository(tv.einthusan.app.BuildConfig.EINTHUSAN_CATALOG_BASE_URL).loadHome()) {
             is CatalogResult.Success -> {
                 catalogueMovies = result.snapshot.sections.flatMap { it.movies }.map { movie ->
@@ -229,7 +240,14 @@ private fun EinthusanTvApp() {
                             if (saved.isEmpty()) EmptyState("Your list is empty", "Open a title and choose + My List to save it here.")
                             else MovieShelf(saved, favourites, { selectedMovie = it }, { title -> favourites = favourites - title })
                         }
-                        "SIGN IN" -> SignInPage()
+                        "SIGN IN" -> SignInPage(
+                            state = accountState,
+                            onSignIn = { email, password ->
+                                accountState = AccountState.SigningIn
+                                scope.launch { accountState = accountRepository.signIn(SignInRequest(email, password.toCharArray())) }
+                            },
+                            onSignOut = { scope.launch { accountRepository.signOut(); accountState = AccountState.SignedOut } }
+                        )
                         "MOVIES" -> {
                             PageHeading("Explore Movies", "Browse the catalogue by language, genre and release year")
                             Text("LANGUAGE", color = TextMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
@@ -479,20 +497,38 @@ private fun MovieDetails(movie: CatalogMovie, saved: Boolean, onBack: () -> Unit
 }
 
 @Composable
-private fun SignInPage() {
+private fun SignInPage(
+    state: AccountState,
+    onSignIn: (String, String) -> Unit,
+    onSignOut: () -> Unit
+) {
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             Modifier.width(560.dp).background(SurfaceDark, RoundedCornerShape(20.dp))
                 .border(1.dp, Purple.copy(alpha = 0.5f), RoundedCornerShape(20.dp)).padding(30.dp),
             verticalArrangement = Arrangement.spacedBy(13.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) { 
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 BrandMark(42.dp)
                 BrandWordmark(27.sp)
             }
             Text("Sign in to your Einthusan account", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            Text("Your favourite South Asian cinema, on the big screen.", color = TextMuted, fontSize = 13.sp)
-            EmptyState("Account connection pending", "We need Einthusan's approved sign-in method before connecting existing accounts. Please do not enter your password in this development preview.")
+            when (state) {
+                is AccountState.SignedIn -> {
+                    Text("Signed in" + (state.displayName?.let { " as $it" } ?: ""), color = Color(0xFF8DE6B2), fontSize = 15.sp)
+                    Text("Your session is held in memory for this app session.", color = TextMuted, fontSize = 12.sp)
+                    SecondaryButton("Sign out", onSignOut)
+                }
+                else -> {
+                    Text("Use your existing Einthusan account. Your password is sent only to Einthusan over HTTPS and is not saved by the app.", color = TextMuted, fontSize = 13.sp)
+                    OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("Password") }, singleLine = true, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+                    if (state is AccountState.Error) Text(state.message, color = Color(0xFFFF8A9A), fontSize = 12.sp)
+                    PrimaryButton(if (state is AccountState.SigningIn) "Signing in…" else "Sign in", { if (state !is AccountState.SigningIn) onSignIn(email, password) })
+                }
+            }
         }
     }
 }
@@ -509,7 +545,24 @@ private fun EmptyState(title: String, message: String) {
 private fun PlayerScreen(movie: CatalogMovie, onBack: () -> Unit) {
     val context = LocalContext.current
     val player = remember(context) { ExoPlayer.Builder(context).build().apply { playWhenReady = false } }
+    var playbackStatus by remember(movie.id) { mutableStateOf("Finding an authorised stream…") }
     DisposableEffect(player) { onDispose { player.release() } }
+
+    LaunchedEffect(movie.id) {
+        when (val result = EinthusanPlaybackRepository(tv.einthusan.app.BuildConfig.EINTHUSAN_CATALOG_BASE_URL)
+            .resolve(PlaybackRequest(movie.id))) {
+            is PlaybackResult.Ready -> {
+                val source = result.sources.first()
+                player.setMediaItem(androidx.media3.common.MediaItem.fromUri(source.url))
+                player.prepare()
+                player.playWhenReady = true
+                playbackStatus = "Playing • " + source.label
+            }
+            is PlaybackResult.Unavailable -> playbackStatus = result.message
+            is PlaybackResult.Failure -> playbackStatus = result.message
+        }
+    }
+
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         AndroidView(
             factory = { viewContext ->
@@ -518,7 +571,7 @@ private fun PlayerScreen(movie: CatalogMovie, onBack: () -> Unit) {
                     useController = true
                     controllerAutoShow = true
                     keepScreenOn = true
-                    contentDescription = "Video player for ${movie.title}"
+                    contentDescription = "Video player for " + movie.title
                 }
             },
             update = { it.player = player },
@@ -533,9 +586,9 @@ private fun PlayerScreen(movie: CatalogMovie, onBack: () -> Unit) {
             Text(movie.title, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         }
         Text(
-            "PLAYBACK CONNECTION PENDING",
+            playbackStatus,
             Modifier.align(Alignment.BottomStart).fillMaxWidth().background(Color(0xCC10091A)).padding(16.dp),
-            color = Color(0xFFFFA9E5), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp
+            color = Color(0xFFFFA9E5), fontSize = 11.sp, fontWeight = FontWeight.Bold
         )
     }
 }
