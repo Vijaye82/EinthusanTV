@@ -165,6 +165,13 @@ private fun EinthusanTvApp() {
     val exploreGenreEntryFocus = remember { FocusRequester() }
     val exploreYearEntryFocus = remember { FocusRequester() }
     val exploreMoviesEntryFocus = remember { FocusRequester() }
+    val searchTitleFocus = remember { FocusRequester() }
+    val searchActorFocus = remember { FocusRequester() }
+    val searchDirectorFocus = remember { FocusRequester() }
+    val searchGenreFocus = remember { FocusRequester() }
+    val searchYearFocus = remember { FocusRequester() }
+    val searchResultsFocus = remember { FocusRequester() }
+    val myListEntryFocus = remember { FocusRequester() }
     var returnFocusKey by remember { mutableStateOf<String?>(null) }
     var playerOpen by remember { mutableStateOf(false) }
     var introVisible by remember { mutableStateOf(true) }
@@ -270,13 +277,14 @@ private fun EinthusanTvApp() {
                             genre, { genre = it }, year, { year = it }, alphabetical, { alphabetical = it },
                             filtered, favourites, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie },
                             { title -> favourites = if (title in favourites) favourites - title else favourites + title },
-                            movieFocusRequesters, returnFocusKey
+                            movieFocusRequesters, returnFocusKey,
+                            searchTitleFocus, searchActorFocus, searchDirectorFocus, searchGenreFocus, searchYearFocus, searchResultsFocus
                         )
                         "MY LIST" -> {
                             PageHeading("My List", "Your saved Einthusan films")
                             val saved = catalogueMovies.filter { it.title in favourites }
                             if (saved.isEmpty()) EmptyState("Your list is empty", "Open a title and choose + My List to save it here.")
-                            else MovieShelf(saved, favourites, "my-list", movieFocusRequesters, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title -> favourites = favourites - title })
+                            else MovieShelf(saved, favourites, "my-list", movieFocusRequesters, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title -> favourites = favourites - title }, firstItemFocusRequester = myListEntryFocus)
                         }
                         "SIGN IN" -> SignInPage(
                             state = accountState,
@@ -455,32 +463,36 @@ private fun SearchPage(
     director: String, onDirector: (String) -> Unit, genre: String, onGenre: (String) -> Unit,
     year: String, onYear: (String) -> Unit, alphabetical: Boolean, onAlphabetical: (Boolean) -> Unit,
     movies: List<CatalogMovie>, favourites: Set<String>, onSelect: (CatalogMovie, String) -> Unit, onToggleSaved: (String) -> Unit,
-    focusRequesters: MutableMap<String, FocusRequester>, restoreFocusKey: String?
+    focusRequesters: MutableMap<String, FocusRequester>, restoreFocusKey: String?,
+    titleFocus: FocusRequester, actorFocus: FocusRequester, directorFocus: FocusRequester,
+    genreFocus: FocusRequester, yearFocus: FocusRequester, resultsFocus: FocusRequester
 ) {
     PageHeading("Search", "Find films by title, cast, director or genre")
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        SearchField("Movie title or language", query, onQuery, Modifier.weight(1.4f))
-        SearchField("Actor", actor, onActor, Modifier.weight(1f))
-        SearchField("Director", director, onDirector, Modifier.weight(1f))
+        SearchField("Movie title or language", query, onQuery, Modifier.weight(1.4f), titleFocus, genreFocus)
+        SearchField("Actor", actor, onActor, Modifier.weight(1f), actorFocus, genreFocus)
+        SearchField("Director", director, onDirector, Modifier.weight(1f), directorFocus, genreFocus)
     }
     Text("Browse by genre", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-    FilterChips(listOf("All", "Action", "Drama", "Comedy", "Romance", "Thriller", "Family", "Adventure"), genre, onGenre)
+    FilterChips(listOf("All", "Action", "Drama", "Comedy", "Romance", "Thriller", "Family", "Adventure"), genre, upEntryFocus = titleFocus, downEntryFocus = yearFocus, firstChipFocusRequester = genreFocus, onSelect = onGenre)
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Year", color = TextMuted, fontSize = 12.sp)
-        FilterChips(listOf("All", "2024", "2023", "2022"), year, onYear)
+        FilterChips(listOf("All", "2024", "2023", "2022"), year, upEntryFocus = genreFocus, downEntryFocus = resultsFocus, firstChipFocusRequester = yearFocus, onSelect = onYear)
         Spacer(Modifier.width(15.dp))
         SecondaryButton(if (alphabetical) "A–Z ✓" else "Sort A–Z", onClick = { onAlphabetical(!alphabetical) })
         Text("${movies.size} catalogue results", color = TextMuted, fontSize = 12.sp)
     }
-    MovieShelf(movies, favourites, "search", focusRequesters, restoreFocusKey, onSelect, onToggleSaved)
+    MovieShelf(movies, favourites, "search", focusRequesters, restoreFocusKey, onSelect, onToggleSaved, upEntryFocus = yearFocus, firstItemFocusRequester = resultsFocus)
 }
 
 @Composable
-private fun SearchField(label: String, value: String, onValue: (String) -> Unit, modifier: Modifier = Modifier) {
+private fun SearchField(label: String, value: String, onValue: (String) -> Unit, modifier: Modifier = Modifier, focusRequester: FocusRequester? = null, downEntryFocus: FocusRequester? = null) {
     OutlinedTextField(
         value = value, onValueChange = onValue,
         label = { Text(label, color = TextMuted, fontSize = 12.sp) },
-        singleLine = true, modifier = modifier, shape = RoundedCornerShape(12.dp)
+        singleLine = true, modifier = modifier
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+            .focusProperties { if (downEntryFocus != null) down = downEntryFocus }, shape = RoundedCornerShape(12.dp)
     )
 }
 
@@ -516,8 +528,9 @@ private fun MovieShelf(movies: List<CatalogMovie>, favourites: Set<String>, shel
             itemsIndexed(movies, key = { _, movie -> movie.id }) { index, movie ->
                 val focusKey = shelfId + "|" + movie.id
                 val requester = remember(focusKey) {
-                    if (index == 0 && firstItemFocusRequester != null) firstItemFocusRequester
-                    else focusRequesters.getOrPut(focusKey) { FocusRequester() }
+                    focusRequesters.getOrPut(focusKey) {
+                        if (index == 0 && firstItemFocusRequester != null) firstItemFocusRequester else FocusRequester()
+                    }
                 }
                 MovieCard(movie, movie.title in favourites, requester, upEntryFocus, downEntryFocus, { onSelect(movie, focusKey) }, { onToggleSaved(movie.title) })
             }
