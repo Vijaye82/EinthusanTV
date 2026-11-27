@@ -8,6 +8,10 @@ import java.net.CookiePolicy
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
+import java.util.Base64
+import tv.einthusan.app.playback.PlaybackRequest
+import tv.einthusan.app.playback.PlaybackResult
+import tv.einthusan.app.playback.PlaybackSource
 
 /**
  * Einthusan web login adapter based on the site's CSRF-backed AJAX login flow.
@@ -78,6 +82,78 @@ class EinthusanAccountRepository(
             signInRequest.password.fill('\u0000')
         }
     }
+
+
+    /**
+     * Resolves a movie through Einthusan's own watch page and AJAX player handshake.
+     * The site's response controls access and quality; no stream URL is fabricated or cached.
+     */
+    suspend fun resolveMovie(movieId: String, language: String, quality: PlaybackRequest.Quality): PlaybackResult =
+        withContext(Dispatchers.IO) {
+            if (!signedIn) return@withContext PlaybackResult.Unavailable("Sign in to your Einthusan account before playing this title.")
+            val safeId = movieId.trim()
+            val safeLanguage = language.trim().lowercase()
+            if (safeId.isBlank() || !safeLanguage.matches(Regex("[a-z]+"))) {
+                return@withContext PlaybackResult.Unavailable("This title is missing a valid Einthusan movie ID or language.")
+            }
+            try {
+                val referer = "$baseUrl/"
+                var watchPath = "/movie/watch/${URLEncoder.encode(safeId, "UTF-8")}/?lang=$safeLanguage"
+                val watchHtml = request("GET", watchPath, referer)
+                if (watchHtml.contains("Go Premium", true)) {
+                    return@withContext PlaybackResult.Unavailable("This quality or title requires an eligible Einthusan Premium account.")
+                }
+                if (watchHtml.contains("SERVERS ARE ALMOST AT CAPACITY", true)) {
+                    return@withContext PlaybackResult.Unavailable("Einthusan servers are busy. Please try again shortly.")
+                }
+                if (quality == PlaybackRequest.Quality.UHD) watchPath += "&uhd=true"
+                val page = if (quality == PlaybackRequest.Quality.UHD) request("GET", watchPath, referer) else watchHtml
+                if (page.contains("Go Premium", true)) {
+                    return@withContext PlaybackResult.Unavailable("UHD playback requires an eligible Einthusan Premium account.")
+                }
+                if (page.contains("SERVERS ARE ALMOST AT CAPACITY", true)) {
+                    return@withContext PlaybackResult.Unavailable("Einthusan servers are busy. Please try again shortly.")
+                }
+                val ejp = Regex("data-ejpingables=[\\"'](.*?)[\\"']", RegexOption.IGNORE_CASE)
+                    .find(page)?.groupValues?.getOrNull(1)
+                    ?.takeIf { it.isNotBlank() }
+                    ?: return@withContext PlaybackResult.Unavailable("Einthusan did not provide a playback token for this title.")
+                val csrf = Regex("data-pageid=[\\"'](.*?)[\\"']", RegexOption.IGNORE_CASE)
+                    .find(page)?.groupValues?.getOrNull(1)
+                    ?.replace("&#43;", "+")
+                    ?.replace("&amp;", "&")
+                    ?: return@withContext PlaybackResult.Unavailable("Einthusan did not provide a playback security token.")
+                val payload = JSONObject().put("EJOutcomes", ejp).put("NativeHLS", false)
+                val form = listOf(
+                    "xEvent" to "UIVideoPlayer.PingOutcome",
+                    "xJson" to payload.toString(),
+                    "arcVersion" to "3",
+                    "appVersion" to "59",
+                    "gorilla.csrf.Token" to csrf
+                ).joinToString("&") { (key, value) ->
+                    URLEncoder.encode(key, "UTF-8") + "=" + URLEncoder.encode(value, "UTF-8")
+                }
+                val response = request("POST", "/ajax$watchPath", "$baseUrl$watchPath", form)
+                val encoded = JSONObject(response).optJSONObject("Data")?.optString("EJLinks")
+                    ?.takeIf { it.isNotBlank() }
+                    ?: return@withContext PlaybackResult.Unavailable("Einthusan did not return a playable stream. Check your account access and try again.")
+                // Match the public Kodi integration's EJLinks envelope decoding; the decoded URL
+                // is still issued by Einthusan after its own watch-page and entitlement checks.
+                val decodedEnvelope = encoded.take(10) + encoded.last() + encoded.substring(12, encoded.length - 1)
+                val envelope = String(Base64.getDecoder().decode(decodedEnvelope), Charsets.UTF_8)
+                val hls = JSONObject(envelope).optString("HLSLink")
+                    .takeIf { it.startsWith("https://") }
+                    ?: return@withContext PlaybackResult.Unavailable("Einthusan returned an invalid playback link.")
+                PlaybackResult.Ready(listOf(PlaybackSource(
+                    url = hls,
+                    label = if (quality == PlaybackRequest.Quality.UHD) "UHD" else "Einthusan HLS",
+                    mimeType = "application/x-mpegURL",
+                    headers = mapOf("Referer" to "$baseUrl$watchPath", "User-Agent" to "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/131.0.0.0 Mobile Safari/537.36")
+                )))
+            } catch (error: Exception) {
+                PlaybackResult.Failure(error.message ?: "Unable to resolve Einthusan playback.", error)
+            }
+        }
 
     override suspend fun signOut() = withContext(Dispatchers.IO) {
         signedIn = false
