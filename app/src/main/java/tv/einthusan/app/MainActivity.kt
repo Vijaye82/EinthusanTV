@@ -504,9 +504,10 @@ private fun EinthusanTvApp() {
                                     onDetails = { returnFocusKey = null; selectedMovie = hero },
                                     playFocusRequester = homePlayFocusRequester
                                 )
-                                Spacer(Modifier.height(20.dp))
+                                Spacer(Modifier.height(34.dp))
                                 ShelfHeading("Browse by language", "Find cinema from across the region")
                                 FilterChips(languages, language, upEntryFocus = homePlayFocusRequester, downEntryFocus = trendingEntryFocus, firstChipFocusRequester = languageFilterEntryFocus) { language = it }
+                                Spacer(Modifier.height(8.dp))
                                 ShelfHeading("Trending now", "Popular picks from the catalogue")
                                 MovieShelf(filtered.take(16), favourites, "home-trending", movieFocusRequesters, movieShelfStates, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title ->
                                     favourites = if (title in favourites) favourites - title else favourites + title
@@ -780,7 +781,10 @@ private fun MovieShelf(movies: List<CatalogMovie>, favourites: Set<String>, shel
         }
         LazyRow(
             state = listState,
-            modifier = Modifier.fillMaxWidth().height(354.dp).focusGroup(),
+            modifier = Modifier.fillMaxWidth().height(370.dp)
+                .clipToBounds()
+                .background(Color(0xFF101010), RoundedCornerShape(12.dp))
+                .focusGroup(),
             horizontalArrangement = Arrangement.spacedBy(18.dp),
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
         ) {
