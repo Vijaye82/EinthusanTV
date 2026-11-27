@@ -9,6 +9,10 @@ import androidx.core.content.FileProvider
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -295,7 +299,11 @@ private fun EinthusanTvApp() {
                             playFocus = detailsPlayFocus,
                             saveFocus = detailsSaveFocus
                         )
-                    } else when (page) {
+                    } else AnimatedContent(
+                        targetState = page,
+                        transitionSpec = { fadeIn(tween(190)) togetherWith fadeOut(tween(130)) },
+                        label = "pageTransition"
+                    ) { destination -> when (destination) {
                         "SEARCH" -> SearchPage(
                             query, { query = it }, actor, { actor = it }, director, { director = it },
                             genre, { genre = it }, year, { year = it }, alphabetical, { alphabetical = it },
@@ -411,7 +419,7 @@ private fun EinthusanTvApp() {
                                 }, upEntryFocus = genreFilterEntryFocus, firstItemFocusRequester = recommendationsEntryFocus)
                             }
                         }
-                    }
+                    } }
                 }
             }
             }
