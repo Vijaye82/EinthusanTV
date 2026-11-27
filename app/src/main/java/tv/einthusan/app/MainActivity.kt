@@ -654,21 +654,70 @@ private fun MovieDetails(
     movie: CatalogMovie, saved: Boolean, onBack: () -> Unit, onPlay: () -> Unit,
     onToggleSaved: () -> Unit, backFocus: FocusRequester, playFocus: FocusRequester, saveFocus: FocusRequester
 ) {
-    Row(Modifier.fillMaxWidth().padding(top = 18.dp), horizontalArrangement = Arrangement.spacedBy(28.dp), verticalAlignment = Alignment.Top) {
-        PosterArtwork(movie, Modifier.width(245.dp).height(340.dp))
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(13.dp)) {
-            Text("MOVIE DETAILS", color = Color(0xFFFFA9E5), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
-            Text(movie.title, color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold)
-            Text("${movie.language}  •  ${movie.year}  •  ${movie.genre}", color = Color(0xFFFFA9E5), fontSize = 15.sp)
-            Text(movie.description, color = TextMuted, fontSize = 17.sp, lineHeight = 25.sp)
-            Text("CAST  •  ${movie.leadActor}", color = Color.White, fontSize = 14.sp)
-            Text("DIRECTOR  •  ${movie.director}", color = Color.White, fontSize = 14.sp)
-            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                SecondaryButton("Back", onBack, focusRequester = backFocus, rightFocus = playFocus)
-                PrimaryButton("▶  Play", onPlay, focusRequester = playFocus, leftFocus = backFocus, rightFocus = saveFocus)
-                SecondaryButton(if (saved) "♥  In My List" else "+  My List", onToggleSaved, focusRequester = saveFocus, leftFocus = playFocus)
+    Box(
+        Modifier.fillMaxWidth()
+            .heightIn(min = 455.dp)
+            .background(SurfaceDark, RoundedCornerShape(18.dp))
+            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(18.dp))
+    ) {
+        if (!movie.backgroundUrl.isNullOrBlank()) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current).data(movie.backgroundUrl).crossfade(true).build(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxWidth().height(455.dp)
+            )
+            Box(
+                Modifier.fillMaxWidth().height(455.dp)
+                    .background(
+                        Brush.horizontalGradient(
+                            0f to Color(0xFF101010).copy(alpha = 0.97f),
+                            0.48f to Color(0xFF101010).copy(alpha = 0.91f),
+                            1f to Color(0xFF101010).copy(alpha = 0.66f)
+                        )
+                    )
+            )
+        }
+        Row(
+            Modifier.fillMaxWidth().padding(26.dp),
+            horizontalArrangement = Arrangement.spacedBy(30.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            PosterArtwork(movie, Modifier.width(285.dp).height(400.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("EINTHUSAN  •  MOVIE DETAILS", color = Color(0xFFFF6972), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.7.sp)
+                Text(movie.title, color = Color.White, fontSize = 36.sp, lineHeight = 42.sp, fontWeight = FontWeight.Bold, maxLines = 2)
+                Row(horizontalArrangement = Arrangement.spacedBy(9.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(movie.language.uppercase(), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("•", color = TextMuted)
+                    Text(movie.year, color = TextMuted, fontSize = 13.sp)
+                    Text("•", color = TextMuted)
+                    Text(movie.genre, color = TextMuted, fontSize = 13.sp)
+                    movie.rating?.let {
+                        Text("•", color = TextMuted)
+                        Text("★ ${"%.1f".format(it)}", color = Color(0xFFFFD166), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+                if (movie.description.isNotBlank()) {
+                    Text(movie.description, color = Color(0xFFE0DCE2), fontSize = 16.sp, lineHeight = 23.sp, maxLines = 4)
+                }
+                if (movie.cast.isNotEmpty() || movie.leadActor.isNotBlank()) {
+                    Text("CAST", color = TextMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
+                    Text((movie.cast.ifEmpty { listOf(movie.leadActor) }).take(4).joinToString("  •  "), color = Color.White, fontSize = 13.sp, maxLines = 2)
+                }
+                if (movie.director.isNotBlank()) {
+                    Text("DIRECTOR  •  ${movie.director}", color = Color(0xFFD0CBD3), fontSize = 13.sp, maxLines = 1)
+                }
+                Row(
+                    Modifier.focusGroup().padding(top = 5.dp),
+                    horizontalArrangement = Arrangement.spacedBy(11.dp)
+                ) {
+                    SecondaryButton("Back", onBack, focusRequester = backFocus, rightFocus = playFocus)
+                    PrimaryButton("▶  Play", onPlay, focusRequester = playFocus, leftFocus = backFocus, rightFocus = saveFocus)
+                    SecondaryButton(if (saved) "♥  In My List" else "+  My List", onToggleSaved, focusRequester = saveFocus, leftFocus = playFocus)
+                }
             }
-         }
+        }
     }
 }
 
