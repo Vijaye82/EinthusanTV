@@ -431,6 +431,7 @@ private fun EinthusanTvApp() {
                                     onDetails = { returnFocusKey = null; selectedMovie = hero },
                                     playFocusRequester = homePlayFocusRequester
                                 )
+                                Spacer(Modifier.height(20.dp))
                                 ShelfHeading("Browse by language", "Find cinema from across the region")
                                 FilterChips(languages, language, upEntryFocus = homePlayFocusRequester, downEntryFocus = trendingEntryFocus, firstChipFocusRequester = languageFilterEntryFocus) { language = it }
                                 ShelfHeading("Trending now", "Popular picks from the catalogue")
@@ -705,7 +706,7 @@ private fun MovieShelf(movies: List<CatalogMovie>, favourites: Set<String>, shel
                 }
             }
         }
-        LazyRow(state = listState, modifier = Modifier.focusGroup(), horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 14.dp)) {
+        LazyRow(state = listState, modifier = Modifier.focusGroup(), horizontalArrangement = Arrangement.spacedBy(24.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 18.dp)) {
             itemsIndexed(movies, key = { _, movie -> movie.id }) { index, movie ->
                 val focusKey = shelfId + "|" + movie.id
                 val requester = remember(focusKey) {
@@ -723,12 +724,12 @@ private fun MovieShelf(movies: List<CatalogMovie>, favourites: Set<String>, shel
 private fun MovieCard(movie: CatalogMovie, saved: Boolean, focusRequester: FocusRequester, upEntryFocus: FocusRequester?, downEntryFocus: FocusRequester?, onSelect: () -> Unit, onToggleSaved: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
-        targetValue = if (focused) 1.075f else 1f,
+        targetValue = if (focused) 1.035f else 1f,
         animationSpec = spring(dampingRatio = 0.68f, stiffness = 340f),
         label = "posterFocusScale"
     )
     Column(
-        Modifier.width(174.dp)
+        Modifier.width(205.dp)
             .focusRequester(focusRequester)
             .focusProperties {
                 if (upEntryFocus != null) up = upEntryFocus
@@ -738,7 +739,7 @@ private fun MovieCard(movie: CatalogMovie, saved: Boolean, focusRequester: Focus
              .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
-                shadowElevation = if (focused) 20f else 0f
+                shadowElevation = if (focused) 12f else 0f
                 shape = RoundedCornerShape(13.dp)
                 clip = false
             }
@@ -753,12 +754,12 @@ private fun MovieCard(movie: CatalogMovie, saved: Boolean, focusRequester: Focus
             .padding(9.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        PosterArtwork(movie, Modifier.fillMaxWidth().height(230.dp))
-        Text(movie.title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-        Text("${movie.language}  •  ${movie.year}", color = TextMuted, fontSize = 10.sp)
-        Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        PosterArtwork(movie, Modifier.fillMaxWidth().height(270.dp))
+        Text(movie.title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+        Text("${movie.language}  •  ${movie.year}", color = TextMuted, fontSize = 10.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             PrimaryButton("Details", onSelect, compact = true)
-            SecondaryButton(if (saved) "♥" else "+ List", onToggleSaved, compact = true)
+            SecondaryButton(if (saved) "♥ Saved" else "+ List", onToggleSaved, compact = true)
         }
     }
 }
