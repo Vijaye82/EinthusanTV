@@ -62,7 +62,7 @@ private val TextMuted = Color(0xFFBDB5C9)
 private data class CatalogMovie(
     val title: String, val language: String, val year: String, val genre: String,
     val leadActor: String, val director: String, val description: String,
-    val id: String = title, val posterUrl: String? = null, val backgroundUrl: String? = null,
+    val id: String = title, val einthusanId: String? = null, val posterUrl: String? = null, val backgroundUrl: String? = null,
     val rating: Double? = null, val cast: List<String> = emptyList()
 )
 
@@ -165,6 +165,7 @@ private fun EinthusanTvApp() {
                         title = movie.title, language = movie.language, year = movie.year?.toString() ?: "—",
                         genre = movie.genres.firstOrNull() ?: "Cinema", leadActor = movie.cast.firstOrNull() ?: "",
                         director = movie.director.orEmpty(), description = movie.synopsis.orEmpty(), id = movie.id,
+                        einthusanId = movie.einthusanId,
                         posterUrl = movie.posterUrl, backgroundUrl = movie.backgroundUrl, rating = movie.rating, cast = movie.cast
                     )
                 }
@@ -553,7 +554,7 @@ private fun PlayerScreen(movie: CatalogMovie, accountRepository: EinthusanAccoun
         player.stop()
         playbackStatus = "Checking Einthusan access…"
         when (val result = EinthusanPlaybackRepository(accountRepository)
-            .resolve(PlaybackRequest(movie.id, movie.language.lowercase(), quality))) {
+            .resolve(PlaybackRequest(movie.einthusanId ?: movie.id.removePrefix("einthusan_"), movie.language.lowercase(), quality))) {
             is PlaybackResult.Ready -> {
                 val source = result.sources.first()
                 val httpFactory = androidx.media3.datasource.DefaultHttpDataSource.Factory()
