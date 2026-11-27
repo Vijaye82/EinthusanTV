@@ -45,6 +45,9 @@ import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.media3.common.MediaItem
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
 
 private val Background = Color(0xFF090711)
 private val SurfaceDark = Color(0xFF171323)
@@ -527,15 +530,45 @@ private fun EmptyState(title: String, message: String) {
 @Composable
 private fun PlayerScreen(movie: CatalogMovie, onBack: () -> Unit) {
     val context = LocalContext.current
-    var pageStatus by remember(movie.id) { mutableStateOf("Opening Einthusan's official movie player…") }
-    var webView by remember { mutableStateOf<WebView?>(null) }
+    var directUrl by remember(movie.id) { mutableStateOf<String?>(null) }
+    var useFallback by remember(movie.id) { mutableStateOf(false) }
+    var status by remember(movie.id) { mutableStateOf("Checking for a direct authorised video source…") }
 
-    DisposableEffect(Unit) {
+    LaunchedEffect(movie.id) {
+        try {
+            val resolved = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                EinthusanCatalogRepository().playableUrl(movie)
+            }
+            if (resolved.startsWith("https://") || resolved.startsWith("http://")) {
+                directUrl = resolved
+                status = "Playing with the native EinthusanTV player"
+            } else {
+                useFallback = true
+                status = "Using Einthusan's embedded player"
+            }
+        } catch (_: Exception) {
+            useFallback = true
+            status = "Opening Einthusan's embedded player"
+        }
+    }
+
+    val player = remember(context, movie.id) {
+        ExoPlayer.Builder(context).build().apply { playWhenReady = true }
+    }
+    LaunchedEffect(directUrl) {
+        val url = directUrl ?: return@LaunchedEffect
+        player.setMediaItem(MediaItem.fromUri(url))
+        player.prepare()
+        player.play()
+    }
+    DisposableEffect(player) { onDispose { player.release() } }
+
+    var webView by remember(movie.id) { mutableStateOf<WebView?>(null) }
+    DisposableEffect(movie.id) {
         onDispose {
             webView?.apply {
                 stopLoading()
                 loadUrl("about:blank")
-                clearHistory()
                 removeAllViews()
                 destroy()
             }
@@ -544,47 +577,59 @@ private fun PlayerScreen(movie: CatalogMovie, onBack: () -> Unit) {
     }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        AndroidView(
-            factory = { viewContext ->
-                WebView(viewContext).apply {
-                    webView = this
-                    settings.javaScriptEnabled = true
-                    settings.domStorageEnabled = true
-                    settings.mediaPlaybackRequiresUserGesture = false
-                    settings.loadsImagesAutomatically = true
-                    settings.javaScriptCanOpenWindowsAutomatically = false
-                    settings.setSupportMultipleWindows(false)
-                    CookieManager.getInstance().setAcceptCookie(true)
-                    CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
-                    webChromeClient = WebChromeClient()
-                    webViewClient = object : WebViewClient() {
-                        override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
-                            pageStatus = "Loading Einthusan player…"
-                        }
-                        override fun onPageFinished(view: WebView?, url: String?) {
-                            pageStatus = "Einthusan player loaded. Use the TV remote to start the movie."
-                            view?.requestFocus()
-                        }
-                        override fun onReceivedError(
-                            view: WebView?, request: WebResourceRequest?, error: android.webkit.WebResourceError?
-                        ) {
-                            if (request?.isForMainFrame == true) {
-                                pageStatus = "Couldn't load Einthusan. Check your connection and try again."
+        if (directUrl != null) {
+            AndroidView(
+                factory = { viewContext ->
+                    PlayerView(viewContext).apply {
+                        this.player = player
+                        useController = true
+                        isFocusable = true
+                        requestFocus()
+                    }
+                },
+                update = { it.player = player },
+                modifier = Modifier.fillMaxSize()
+            )
+        } else if (useFallback) {
+            AndroidView(
+                factory = { viewContext ->
+                    WebView(viewContext).apply {
+                        webView = this
+                        settings.javaScriptEnabled = true
+                        settings.domStorageEnabled = true
+                        settings.mediaPlaybackRequiresUserGesture = false
+                        settings.loadsImagesAutomatically = true
+                        CookieManager.getInstance().setAcceptCookie(true)
+                        CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+                        webChromeClient = WebChromeClient()
+                        webViewClient = object : WebViewClient() {
+                            override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                                status = "Loading Einthusan's embedded player…"
+                            }
+                            override fun onPageFinished(view: WebView?, url: String?) {
+                                status = "Einthusan player loaded. Use your TV remote to play."
+                                view?.requestFocus()
+                            }
+                            override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: android.webkit.WebResourceError?) {
+                                if (request?.isForMainFrame == true) status = "Couldn't load Einthusan. Check your connection."
                             }
                         }
+                        isFocusable = true
+                        isFocusableInTouchMode = true
+                        loadUrl("https://einthusan.tv/movie/watch/" + movie.id + "/")
                     }
-                    isFocusable = true
-                    isFocusableInTouchMode = true
-                    loadUrl("https://einthusan.tv/movie/watch/" + movie.id + "/")
-                }
-            },
-            update = { view ->
-                if (view.url.isNullOrBlank() || view.url == "about:blank") {
-                    view.loadUrl("https://einthusan.tv/movie/watch/" + movie.id + "/")
-                }
-            },
-            modifier = Modifier.fillMaxSize()
-        )
+                },
+                update = { view ->
+                    if (view.url.isNullOrBlank() || view.url == "about:blank") {
+                        view.loadUrl("https://einthusan.tv/movie/watch/" + movie.id + "/")
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Text(status, Modifier.align(Alignment.Center), color = Color.White, fontSize = 16.sp)
+        }
+
         Row(
             Modifier.align(Alignment.TopStart).fillMaxWidth().background(Color(0xCC10091A))
                 .padding(horizontal = 28.dp, vertical = 12.dp),
@@ -595,7 +640,7 @@ private fun PlayerScreen(movie: CatalogMovie, onBack: () -> Unit) {
             Text(movie.title, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         }
         Text(
-            pageStatus,
+            status,
             Modifier.align(Alignment.BottomStart).fillMaxWidth().background(Color(0xCC10091A)).padding(12.dp),
             color = Color(0xFFFFA9E5), fontSize = 11.sp, fontWeight = FontWeight.Bold
         )
