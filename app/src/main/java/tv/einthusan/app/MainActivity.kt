@@ -270,10 +270,10 @@ private fun EinthusanTvApp() {
 
     MaterialTheme {
         Surface(Modifier.fillMaxSize(), color = Background) {
+            AppUpdateChecker()
             if (introVisible) {
                 CinematicIntro(onFinished = { introVisible = false })
             } else {
-                AppUpdateChecker()
             if (playerOpen && selectedMovie != null) {
                 PlayerScreen(selectedMovie!!, accountRepository, onBack = { playerOpen = false })
             } else {
