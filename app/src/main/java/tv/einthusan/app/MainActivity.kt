@@ -809,35 +809,78 @@ private fun SignInPage(
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(
-            Modifier.width(560.dp).background(SurfaceDark, RoundedCornerShape(20.dp))
-                .border(1.dp, Purple.copy(alpha = 0.5f), RoundedCornerShape(20.dp)).padding(30.dp),
-            verticalArrangement = Arrangement.spacedBy(13.dp)
+    Box(Modifier.fillMaxWidth().padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
+        Row(
+            Modifier.fillMaxWidth().widthIn(max = 1040.dp).heightIn(min = 390.dp)
+                .background(SurfaceDark, RoundedCornerShape(20.dp))
+                .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
+                .clip(RoundedCornerShape(20.dp))
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                BrandMark(42.dp)
-                BrandWordmark(27.sp)
-            }
-            Text("Sign in to your Einthusan account", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            when (state) {
-                is AccountState.SignedIn -> {
-                    Text("Signed in" + (state.displayName?.let { " as $it" } ?: ""), color = Color(0xFF8DE6B2), fontSize = 15.sp)
-                    Text("Your session is held in memory for this app session.", color = TextMuted, fontSize = 12.sp)
-                    SecondaryButton("Sign out", onSignOut, focusRequester = emailFocus)
+            Column(
+                Modifier.weight(0.9f).fillMaxHeight()
+                    .background(Brush.linearGradient(listOf(Color(0xFF42131D), Color(0xFF211018), Color(0xFF171717))))
+                    .padding(30.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    BrandMark(54.dp)
+                    Text("YOUR CINEMA. YOUR ACCOUNT.", color = Color(0xFFFF8790), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.6.sp)
+                    Text("A world of films,\nall in one place.", color = Color.White, fontSize = 28.sp, lineHeight = 34.sp, fontWeight = FontWeight.Black)
+                    Text("Sign in with your existing Einthusan account to access available playback features.", color = Color(0xFFD7C9CE), fontSize = 13.sp, lineHeight = 19.sp)
                 }
-                else -> {
-                    Text("Use your existing Einthusan account. Your password is sent only to Einthusan over HTTPS and is not saved by the app.", color = TextMuted, fontSize = 13.sp)
-                    OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, singleLine = true, modifier = Modifier.fillMaxWidth().focusRequester(emailFocus).focusProperties { down = passwordFocus })
-                    OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("Password") }, singleLine = true, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth().focusRequester(passwordFocus).focusProperties { up = emailFocus; down = submitFocus })
-                    if (state is AccountState.Error) Text(state.message, color = Color(0xFFFF8A9A), fontSize = 12.sp)
-                    PrimaryButton(if (state is AccountState.SigningIn) "Signing in…" else "Sign in", { if (state !is AccountState.SigningIn) onSignIn(email, password) }, focusRequester = submitFocus)
+                BrandWordmark(25.sp)
+            }
+            Column(
+                Modifier.weight(1.1f).fillMaxHeight().padding(horizontal = 34.dp, vertical = 28.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Text("WELCOME BACK", color = Color(0xFFFF6972), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.6.sp)
+                Text("Sign in to Einthusan", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                when (state) {
+                    is AccountState.SignedIn -> {
+                        Text("You’re signed in" + (state.displayName?.let { " as $it" } ?: ""), color = Color(0xFF8DE6B2), fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        Text("Your account session is held in memory for this app session.", color = TextMuted, fontSize = 12.sp, lineHeight = 18.sp)
+                        SecondaryButton("Sign out", onSignOut, focusRequester = emailFocus)
+                    }
+                    else -> {
+                        Text("Use your existing Einthusan credentials. Your password is sent only to Einthusan over HTTPS and is not saved by the app.", color = TextMuted, fontSize = 12.sp, lineHeight = 18.sp)
+                        OutlinedTextField(
+                            value = email, onValueChange = { email = it },
+                            label = { Text("Email address") }, singleLine = true,
+                            modifier = Modifier.fillMaxWidth().focusRequester(emailFocus).focusProperties { down = passwordFocus },
+                            shape = RoundedCornerShape(11.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFFFF5962), unfocusedBorderColor = Color.White.copy(alpha = 0.18f),
+                                focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+                                cursorColor = Color(0xFFFF5962), focusedContainerColor = Color(0xFF202020),
+                                unfocusedContainerColor = Color(0xFF202020)
+                            )
+                        )
+                        OutlinedTextField(
+                            value = password, onValueChange = { password = it },
+                            label = { Text("Password") }, singleLine = true,
+                            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth().focusRequester(passwordFocus).focusProperties { up = emailFocus; down = submitFocus },
+                            shape = RoundedCornerShape(11.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFFFF5962), unfocusedBorderColor = Color.White.copy(alpha = 0.18f),
+                                focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+                                cursorColor = Color(0xFFFF5962), focusedContainerColor = Color(0xFF202020),
+                                unfocusedContainerColor = Color(0xFF202020)
+                            )
+                        )
+                        if (state is AccountState.Error) Text(state.message, color = Color(0xFFFF8A9A), fontSize = 12.sp, lineHeight = 17.sp)
+                        PrimaryButton(
+                            if (state is AccountState.SigningIn) "Signing in…" else "Sign in",
+                            { if (state !is AccountState.SigningIn && email.isNotBlank() && password.isNotBlank()) onSignIn(email.trim(), password) },
+                            focusRequester = submitFocus
+                        )
+                    }
                 }
             }
         }
     }
 }
-
 @Composable
 private fun EmptyState(
     title: String, message: String, actionLabel: String? = null,
