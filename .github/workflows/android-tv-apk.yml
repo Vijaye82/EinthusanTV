@@ -10,6 +10,11 @@ on:
 permissions:
   contents: write
 
+# Serialize builds so the handover commit cannot race another run.
+concurrency:
+  group: android-tv-apk-${{ github.ref }}
+  queue: max
+
 jobs:
   build:
     runs-on: ubuntu-latest
