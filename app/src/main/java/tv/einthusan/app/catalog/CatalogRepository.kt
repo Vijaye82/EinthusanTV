@@ -94,6 +94,7 @@ class EinthusanCatalogRepository(
         return Movie(
             id = movieId,
             title = movieTitle,
+            einthusanId = optString("EinthusanID").takeIf { it.isNotBlank() } ?: movieId.removePrefix("einthusan_").takeIf { movieId.startsWith("einthusan_") },
             language = language.replaceFirstChar { it.uppercase() },
             year = year,
             genres = genres,
