@@ -16,6 +16,7 @@ data class SubtitleTrack(val url: String, val language: String, val mimeType: St
 
 data class PlaybackRequest(
     val movieId: String,
+    val language: String = "tamil",
     val preferredQuality: Quality = Quality.AUTO
 ) {
     enum class Quality { AUTO, HD, UHD }
