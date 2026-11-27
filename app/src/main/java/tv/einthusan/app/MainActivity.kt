@@ -41,11 +41,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import android.webkit.CookieManager
-import android.webkit.WebChromeClient
-import android.webkit.WebResourceRequest
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
@@ -542,24 +537,28 @@ private fun EmptyState(title: String, message: String) {
 private fun PlayerScreen(movie: CatalogMovie, onBack: () -> Unit) {
     val context = LocalContext.current
     var directUrl by remember(movie.id) { mutableStateOf<String?>(null) }
-    var useFallback by remember(movie.id) { mutableStateOf(false) }
-    var status by remember(movie.id) { mutableStateOf("Checking for a direct authorised video source…") }
+    var status by remember(movie.id) { mutableStateOf("Checking for an authorised video stream…") }
+    var loading by remember(movie.id) { mutableStateOf(true) }
 
     LaunchedEffect(movie.id) {
+        loading = true
+        status = "Checking for an authorised video stream…"
+        directUrl = null
         try {
             val resolved = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                 EinthusanCatalogRepository().playableUrl(movie)
             }
             if (resolved.startsWith("https://") || resolved.startsWith("http://")) {
                 directUrl = resolved
-                status = "Playing with the native EinthusanTV player"
+                status = "Preparing native playback…"
             } else {
-                useFallback = true
-                status = "Using Einthusan's embedded player"
+                status = "A direct video stream is not available from the catalogue page. The website player has not been opened. We need Einthusan's approved playback integration to play this title here."
             }
-        } catch (_: Exception) {
-            useFallback = true
-            status = "Opening Einthusan's embedded player"
+        } catch (error: Exception) {
+            status = "Couldn't obtain an authorised video stream. " +
+                (error.message?.take(160) ?: "Einthusan's playback integration may be required.")
+        } finally {
+            loading = false
         }
     }
 
@@ -573,19 +572,6 @@ private fun PlayerScreen(movie: CatalogMovie, onBack: () -> Unit) {
         player.play()
     }
     DisposableEffect(player) { onDispose { player.release() } }
-
-    var webView by remember(movie.id) { mutableStateOf<WebView?>(null) }
-    DisposableEffect(movie.id) {
-        onDispose {
-            webView?.apply {
-                stopLoading()
-                loadUrl("about:blank")
-                removeAllViews()
-                destroy()
-            }
-            webView = null
-        }
-    }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         if (directUrl != null) {
@@ -601,46 +587,18 @@ private fun PlayerScreen(movie: CatalogMovie, onBack: () -> Unit) {
                 update = { it.player = player },
                 modifier = Modifier.fillMaxSize()
             )
-        } else if (useFallback) {
-            AndroidView(
-                factory = { viewContext ->
-                    WebView(viewContext).apply {
-                        webView = this
-                        settings.javaScriptEnabled = true
-                        settings.domStorageEnabled = true
-                        settings.mediaPlaybackRequiresUserGesture = false
-                        settings.loadsImagesAutomatically = true
-                        CookieManager.getInstance().setAcceptCookie(true)
-                        CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
-                        webChromeClient = WebChromeClient()
-                        webViewClient = object : WebViewClient() {
-                            override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
-                                status = "Loading Einthusan's embedded player…"
-                            }
-                            override fun onPageFinished(view: WebView?, url: String?) {
-                                status = "Einthusan player loaded. Use your TV remote to play."
-                                view?.requestFocus()
-                            }
-                            override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: android.webkit.WebResourceError?) {
-                                if (request?.isForMainFrame == true) status = "Couldn't load Einthusan. Check your connection."
-                            }
-                        }
-                        isFocusable = true
-                        isFocusableInTouchMode = true
-                        loadUrl("https://einthusan.tv/movie/watch/" + movie.id + "/")
-                    }
-                },
-                update = { view ->
-                    if (view.url.isNullOrBlank() || view.url == "about:blank") {
-                        view.loadUrl("https://einthusan.tv/movie/watch/" + movie.id + "/")
-                    }
-                },
-                modifier = Modifier.fillMaxSize()
-            )
         } else {
-            Text(status, Modifier.align(Alignment.Center), color = Color.White, fontSize = 16.sp)
+            Column(
+                Modifier.align(Alignment.Center).fillMaxWidth(0.78f).padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                if (loading) CircularProgressIndicator(color = Magenta)
+                else Text("NATIVE PLAYBACK NOT AVAILABLE", color = Color(0xFFFFA9E5), fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                Text(status, color = Color.White, fontSize = 14.sp, lineHeight = 21.sp)
+                if (!loading) SecondaryButton("‹ Back to movie", onBack)
+            }
         }
-
         Row(
             Modifier.align(Alignment.TopStart).fillMaxWidth().background(Color(0xCC10091A))
                 .padding(horizontal = 28.dp, vertical = 12.dp),
@@ -650,11 +608,13 @@ private fun PlayerScreen(movie: CatalogMovie, onBack: () -> Unit) {
             Spacer(Modifier.width(18.dp))
             Text(movie.title, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         }
-        Text(
-            status,
-            Modifier.align(Alignment.BottomStart).fillMaxWidth().background(Color(0xCC10091A)).padding(12.dp),
-            color = Color(0xFFFFA9E5), fontSize = 11.sp, fontWeight = FontWeight.Bold
-        )
+        if (directUrl != null) {
+            Text(
+                "Playing with the native EinthusanTV player",
+                Modifier.align(Alignment.BottomStart).fillMaxWidth().background(Color(0xCC10091A)).padding(12.dp),
+                color = Color(0xFFFFA9E5), fontSize = 11.sp, fontWeight = FontWeight.Bold
+            )
+        }
     }
 }
 
