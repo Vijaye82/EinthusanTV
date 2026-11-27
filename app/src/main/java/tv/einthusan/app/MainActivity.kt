@@ -23,6 +23,7 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -156,6 +157,7 @@ private fun EinthusanTvApp() {
     var alphabetical by remember { mutableStateOf(false) }
     var selectedMovie by remember { mutableStateOf<CatalogMovie?>(null) }
     val movieFocusRequesters = remember { mutableMapOf<String, FocusRequester>() }
+    val movieShelfStates = remember { mutableMapOf<String, LazyListState>() }
     val trendingEntryFocus = remember { FocusRequester() }
     val recentEntryFocus = remember { FocusRequester() }
     val recommendationsEntryFocus = remember { FocusRequester() }
@@ -286,7 +288,7 @@ private fun EinthusanTvApp() {
                             genre, { genre = it }, year, { year = it }, alphabetical, { alphabetical = it },
                             filtered, favourites, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie },
                             { title -> favourites = if (title in favourites) favourites - title else favourites + title },
-                            movieFocusRequesters, returnFocusKey,
+                            movieFocusRequesters, movieShelfStates, returnFocusKey,
                             searchTitleFocus, searchActorFocus, searchDirectorFocus, searchGenreFocus, searchYearFocus, searchResultsFocus
                         )
                         "MY LIST" -> {
@@ -299,7 +301,7 @@ private fun EinthusanTvApp() {
                                 onAction = { page = "MOVIES" },
                                 actionFocusRequester = myListEntryFocus
                             )
-                            else MovieShelf(saved, favourites, "my-list", movieFocusRequesters, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title -> favourites = favourites - title }, firstItemFocusRequester = myListEntryFocus)
+                            else MovieShelf(saved, favourites, "my-list", movieFocusRequesters, movieShelfStates, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title -> favourites = favourites - title }, firstItemFocusRequester = myListEntryFocus)
                         }
                         "SIGN IN" -> SignInPage(
                             state = accountState,
@@ -327,7 +329,7 @@ private fun EinthusanTvApp() {
                                 Spacer(Modifier.weight(1f))
                                 SecondaryButton(if (alphabetical) "Sort: A–Z" else "Sort: Featured", onClick = { alphabetical = !alphabetical })
                             }
-                            MovieShelf(filtered, favourites, "movies", movieFocusRequesters, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title ->
+                            MovieShelf(filtered, favourites, "movies", movieFocusRequesters, movieShelfStates, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title ->
                                 favourites = if (title in favourites) favourites - title else favourites + title
                             }, upEntryFocus = exploreYearEntryFocus, firstItemFocusRequester = exploreMoviesEntryFocus)
                         }
@@ -346,17 +348,17 @@ private fun EinthusanTvApp() {
                                 Text("Browse by language", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
                                 FilterChips(languages, language, upEntryFocus = homePlayFocusRequester, downEntryFocus = trendingEntryFocus, firstChipFocusRequester = languageFilterEntryFocus) { language = it }
                                 Text("Trending now", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                                MovieShelf(filtered.take(16), favourites, "home-trending", movieFocusRequesters, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title ->
+                                MovieShelf(filtered.take(16), favourites, "home-trending", movieFocusRequesters, movieShelfStates, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title ->
                                     favourites = if (title in favourites) favourites - title else favourites + title
                                 }, upEntryFocus = languageFilterEntryFocus, downEntryFocus = genreFilterEntryFocus, firstItemFocusRequester = trendingEntryFocus)
                                 Text("Recently added", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                                MovieShelf(filtered.sortedByDescending { it.year }.take(18), favourites, "home-recent", movieFocusRequesters, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title ->
+                                MovieShelf(filtered.sortedByDescending { it.year }.take(18), favourites, "home-recent", movieFocusRequesters, movieShelfStates, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title ->
                                     favourites = if (title in favourites) favourites - title else favourites + title
                                 }, upEntryFocus = trendingEntryFocus, downEntryFocus = genreFilterEntryFocus, firstItemFocusRequester = recentEntryFocus)
                                 Text("Explore by genre", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                                 FilterChips(genres, genre, upEntryFocus = recentEntryFocus, downEntryFocus = recommendationsEntryFocus, firstChipFocusRequester = genreFilterEntryFocus) { genre = it; page = "MOVIES" }
                                 Text("Your next favourite film", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                                MovieShelf(filtered.drop(8).take(18), favourites, "home-recommendations", movieFocusRequesters, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title ->
+                                MovieShelf(filtered.drop(8).take(18), favourites, "home-recommendations", movieFocusRequesters, movieShelfStates, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title ->
                                     favourites = if (title in favourites) favourites - title else favourites + title
                                 }, upEntryFocus = genreFilterEntryFocus, firstItemFocusRequester = recommendationsEntryFocus)
                             }
@@ -492,7 +494,7 @@ private fun SearchPage(
     director: String, onDirector: (String) -> Unit, genre: String, onGenre: (String) -> Unit,
     year: String, onYear: (String) -> Unit, alphabetical: Boolean, onAlphabetical: (Boolean) -> Unit,
     movies: List<CatalogMovie>, favourites: Set<String>, onSelect: (CatalogMovie, String) -> Unit, onToggleSaved: (String) -> Unit,
-    focusRequesters: MutableMap<String, FocusRequester>, restoreFocusKey: String?,
+    focusRequesters: MutableMap<String, FocusRequester>, shelfStates: MutableMap<String, LazyListState>, restoreFocusKey: String?,
     titleFocus: FocusRequester, actorFocus: FocusRequester, directorFocus: FocusRequester,
     genreFocus: FocusRequester, yearFocus: FocusRequester, resultsFocus: FocusRequester
 ) {
@@ -511,7 +513,7 @@ private fun SearchPage(
         SecondaryButton(if (alphabetical) "A–Z ✓" else "Sort A–Z", onClick = { onAlphabetical(!alphabetical) })
         Text("${movies.size} catalogue results", color = TextMuted, fontSize = 12.sp)
     }
-    MovieShelf(movies, favourites, "search", focusRequesters, restoreFocusKey, onSelect, onToggleSaved, upEntryFocus = yearFocus, firstItemFocusRequester = resultsFocus)
+    MovieShelf(movies, favourites, "search", focusRequesters, shelfStates, restoreFocusKey, onSelect, onToggleSaved, upEntryFocus = yearFocus, firstItemFocusRequester = resultsFocus)
 }
 
 @Composable
@@ -544,16 +546,21 @@ private fun FilterChips(options: List<String>, selected: String, upEntryFocus: F
 }
 
 @Composable
-private fun MovieShelf(movies: List<CatalogMovie>, favourites: Set<String>, shelfId: String, focusRequesters: MutableMap<String, FocusRequester>, restoreFocusKey: String?, onSelect: (CatalogMovie, String) -> Unit, onToggleSaved: (String) -> Unit, upEntryFocus: FocusRequester? = null, downEntryFocus: FocusRequester? = null, firstItemFocusRequester: FocusRequester? = null) {
+private fun MovieShelf(movies: List<CatalogMovie>, favourites: Set<String>, shelfId: String, focusRequesters: MutableMap<String, FocusRequester>, shelfStates: MutableMap<String, LazyListState>, restoreFocusKey: String?, onSelect: (CatalogMovie, String) -> Unit, onToggleSaved: (String) -> Unit, upEntryFocus: FocusRequester? = null, downEntryFocus: FocusRequester? = null, firstItemFocusRequester: FocusRequester? = null) {
     if (movies.isEmpty()) EmptyState("No catalogue titles yet", "The real Einthusan catalogue will appear here once connected.")
     else {
+        val listState = remember(shelfId) { shelfStates.getOrPut(shelfId) { LazyListState() } }
         LaunchedEffect(restoreFocusKey, movies, shelfId) {
             if (restoreFocusKey?.startsWith(shelfId + "|") == true) {
-                delay(120)
-                focusRequesters[restoreFocusKey]?.let { runCatching { it.requestFocus() } }
+                val targetIndex = movies.indexOfFirst { shelfId + "|" + it.id == restoreFocusKey }
+                if (targetIndex >= 0) {
+                    listState.scrollToItem(targetIndex)
+                    delay(100)
+                    focusRequesters[restoreFocusKey]?.let { runCatching { it.requestFocus() } }
+                }
             }
         }
-        LazyRow(modifier = Modifier.focusGroup(), horizontalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(vertical = 7.dp)) {
+        LazyRow(state = listState, modifier = Modifier.focusGroup(), horizontalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(vertical = 7.dp)) {
             itemsIndexed(movies, key = { _, movie -> movie.id }) { index, movie ->
                 val focusKey = shelfId + "|" + movie.id
                 val requester = remember(focusKey) {
