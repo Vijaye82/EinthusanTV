@@ -114,40 +114,61 @@ internal class EinthusanCatalogRepository(private val baseUrl: String = "https:/
     private fun findPoster(card: Element, link: Element): String {
         val candidates = mutableListOf<Pair<Int, String>>()
 
-        fun collect(element: Element, baseScore: Int) {
-            // Ignore cast/profile images: those links point to image/CDN or person pages,
-            // not back to the movie's own watch page.
-            val ownerLink = element.closest("a[href]")
-            if (ownerLink != null && ownerLink !== link &&
-                !ownerLink.attr("href").contains("/movie/watch/", true)) return
-
-            for (attr in listOf("data-poster", "data-image", "data-original", "data-src",
-                "data-lazy-src", "data-bg", "data-background", "poster", "src")) {
-                val raw = element.attr(attr).trim()
-                val url = element.absUrl(attr).ifBlank { raw }
-                if (url.startsWith("https://") || url.startsWith("http://")) {
-                    candidates += baseScore to url
-                }
+        fun add(rawValue: String, baseScore: Int) {
+            val raw = rawValue.trim().substringBefore(" ")
+            if (raw.isBlank() || raw.startsWith("data:")) return
+            val url = when {
+                raw.startsWith("//") -> "https:$raw"
+                raw.startsWith("/") -> baseUrl + raw
+                raw.startsWith("http://") || raw.startsWith("https://") -> raw
+                else -> ""
             }
-            val css = Regex("""url\(\s*['"]?(https?://[^)'"]+)""", RegexOption.IGNORE_CASE)
-                .find(element.attr("style"))?.groupValues?.getOrNull(1)
-            if (!css.isNullOrBlank()) candidates += baseScore to css
+            if (url.isBlank()) return
+            val lower = url.lowercase()
+            // Einthusan's cast headshots use /prof/; exclude those while allowing
+            // poster artwork that sits beside, rather than inside, the Watch link.
+            if (lower.contains("/prof/") || lower.contains("/profile/") ||
+                lower.contains("avatar") || lower.contains("logo")) return
+            if (!lower.matches(Regex(".*\\.(jpg|jpeg|png|webp)(\\?.*)?$"))) return
+            candidates += baseScore to url
         }
 
-        // Highest confidence: artwork inside the actual movie-watch anchor.
-        collect(link, 300)
-        link.select("img, picture, source, [style*=background], [data-bg], [data-background]")
-            .forEach { collect(it, 290) }
+        fun collect(element: Element, score: Int) {
+            for (attr in listOf("data-poster", "data-image", "data-original", "data-src",
+                "data-lazy-src", "data-srcset", "data-bg", "data-background", "poster", "src")) {
+                val raw = element.attr(attr).trim()
+                if (raw.isNotBlank()) {
+                    val absolute = element.absUrl(attr).ifBlank { raw }
+                    add(absolute, score)
+                }
+            }
+            for (attr in listOf("srcset", "data-srcset")) {
+                val set = element.attr(attr)
+                if (set.isNotBlank()) {
+                    val best = set.split(",").map { it.trim().substringBefore(" ") }.lastOrNull().orEmpty()
+                    add(element.absUrl(attr).ifBlank { best }, score + 5)
+                }
+            }
+            val css = Regex("""url\\(\\s*['"]?([^)'"]+)""", RegexOption.IGNORE_CASE)
+                .find(element.attr("style"))?.groupValues?.getOrNull(1)
+            if (!css.isNullOrBlank()) add(element.absUrl("style").ifBlank { css }, score)
+        }
 
-        // Next: explicitly named poster/cover artwork in this movie card.
+        // The watch link and explicitly labelled artwork are the strongest candidates.
+        collect(link, 400)
+        link.select("img, picture, source, [style*=background], [data-bg], [data-background]")
+            .forEach { collect(it, 390) }
         card.select("[class*=poster], [id*=poster], [class*=cover], [id*=cover]")
             .forEach { container ->
-                collect(container, 240)
+                collect(container, 340)
                 container.select("img, picture, source, [style*=background], [data-bg], [data-background]")
-                    .forEach { collect(it, 230) }
+                    .forEach { collect(it, 330) }
             }
 
-        // Do not scan every image in the card: cast portraits live in the same card.
+        // Fallback: inspect the rest of this movie card, excluding Einthusan /prof/ portraits.
+        card.select("img, picture, source, [style*=background], [data-bg], [data-background]")
+            .forEach { collect(it, 200) }
+
         return candidates.maxByOrNull { it.first }?.second.orEmpty()
     }
 
