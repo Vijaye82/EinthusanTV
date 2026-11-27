@@ -212,7 +212,13 @@ class EinthusanAccountRepository(
                 ).joinToString("&") { (key, value) ->
                     URLEncoder.encode(key, "UTF-8") + "=" + URLEncoder.encode(value, "UTF-8")
                 }
-                val ajaxPath = "/ajax/movie/watch/${URLEncoder.encode(safeId, "UTF-8")}/"
+                // Einthusan expects the language on the AJAX endpoint as well as on
+                // the watch page. UHD requests must carry the same quality flag on both.
+                val ajaxPath = buildString {
+                    append("/ajax/movie/watch/${URLEncoder.encode(safeId, "UTF-8")}/?lang=")
+                    append(URLEncoder.encode(safeLanguage, "UTF-8"))
+                    if (quality == PlaybackRequest.Quality.UHD) append("&uhd=true")
+                }
                 val response = request("POST", ajaxPath, "$baseUrl$watchPath", form)
                 val responseJson = runCatching { JSONObject(response) }.getOrNull()
                     ?: return@withContext PlaybackResult.Unavailable("Einthusan returned an unexpected playback response: " + response.take(180))
