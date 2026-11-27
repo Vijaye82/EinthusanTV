@@ -40,9 +40,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.media3.common.MediaItem
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.PlayerView
+import android.webkit.CookieManager
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebView
+import android.webkit.WebViewClient
 
 private val Background = Color(0xFF090711)
 private val SurfaceDark = Color(0xFF171323)
@@ -525,47 +527,67 @@ private fun EmptyState(title: String, message: String) {
 @Composable
 private fun PlayerScreen(movie: CatalogMovie, onBack: () -> Unit) {
     val context = LocalContext.current
-    var streamUrl by remember(movie.id) { mutableStateOf<String?>(null) }
-    var playbackStatus by remember(movie.id) { mutableStateOf("Checking for a directly playable stream…") }
-    LaunchedEffect(movie.id) {
-        try {
-            val resolved = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                EinthusanCatalogRepository().playableUrl(movie)
+    var pageStatus by remember(movie.id) { mutableStateOf("Opening Einthusan's official movie player…") }
+    var webView by remember { mutableStateOf<WebView?>(null) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            webView?.apply {
+                stopLoading()
+                loadUrl("about:blank")
+                clearHistory()
+                removeAllViews()
+                destroy()
             }
-            if (resolved.startsWith("https://") || resolved.startsWith("http://")) {
-                streamUrl = resolved
-                playbackStatus = "Starting playback…"
-            } else {
-                playbackStatus = "Einthusan did not expose a direct video URL in the public watch-page markup. Account-authorised playback integration is still needed."
-            }
-        } catch (error: Exception) {
-            playbackStatus = error.message?.take(180) ?: "Could not resolve the movie stream."
+            webView = null
         }
     }
-    val player = remember(context) { ExoPlayer.Builder(context).build().apply { playWhenReady = false } }
-    LaunchedEffect(streamUrl) {
-        val url = streamUrl ?: return@LaunchedEffect
-        player.setMediaItem(MediaItem.fromUri(url))
-        player.prepare()
-        player.playWhenReady = true
-    }
-    DisposableEffect(player) { onDispose { player.release() } }
+
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         AndroidView(
             factory = { viewContext ->
-                PlayerView(viewContext).apply {
-                    this.player = player
-                    useController = true
-                    controllerAutoShow = true
-                    keepScreenOn = true
-                    contentDescription = "Video player for ${movie.title}"
+                WebView(viewContext).apply {
+                    webView = this
+                    settings.javaScriptEnabled = true
+                    settings.domStorageEnabled = true
+                    settings.mediaPlaybackRequiresUserGesture = false
+                    settings.loadsImagesAutomatically = true
+                    settings.javaScriptCanOpenWindowsAutomatically = false
+                    settings.setSupportMultipleWindows(false)
+                    CookieManager.getInstance().setAcceptCookie(true)
+                    CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+                    webChromeClient = WebChromeClient()
+                    webViewClient = object : WebViewClient() {
+                        override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                            pageStatus = "Loading Einthusan player…"
+                        }
+                        override fun onPageFinished(view: WebView?, url: String?) {
+                            pageStatus = "Einthusan player loaded. Use the TV remote to start the movie."
+                            view?.requestFocus()
+                        }
+                        override fun onReceivedError(
+                            view: WebView?, request: WebResourceRequest?, error: android.webkit.WebResourceError?
+                        ) {
+                            if (request?.isForMainFrame == true) {
+                                pageStatus = "Couldn't load Einthusan. Check your connection and try again."
+                            }
+                        }
+                    }
+                    isFocusable = true
+                    isFocusableInTouchMode = true
+                    loadUrl("https://einthusan.tv/movie/watch/" + movie.id + "/")
                 }
             },
-            update = { it.player = player },
+            update = { view ->
+                if (view.url.isNullOrBlank() || view.url == "about:blank") {
+                    view.loadUrl("https://einthusan.tv/movie/watch/" + movie.id + "/")
+                }
+            },
             modifier = Modifier.fillMaxSize()
         )
         Row(
-            Modifier.align(Alignment.TopStart).fillMaxWidth().background(Color(0xCC10091A)).padding(horizontal = 28.dp, vertical = 16.dp),
+            Modifier.align(Alignment.TopStart).fillMaxWidth().background(Color(0xCC10091A))
+                .padding(horizontal = 28.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             SecondaryButton("‹ Back", onBack)
@@ -573,8 +595,8 @@ private fun PlayerScreen(movie: CatalogMovie, onBack: () -> Unit) {
             Text(movie.title, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         }
         Text(
-            playbackStatus,
-            Modifier.align(Alignment.BottomStart).fillMaxWidth().background(Color(0xCC10091A)).padding(16.dp),
+            pageStatus,
+            Modifier.align(Alignment.BottomStart).fillMaxWidth().background(Color(0xCC10091A)).padding(12.dp),
             color = Color(0xFFFFA9E5), fontSize = 11.sp, fontWeight = FontWeight.Bold
         )
     }
