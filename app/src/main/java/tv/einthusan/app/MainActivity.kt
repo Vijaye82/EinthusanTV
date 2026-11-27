@@ -45,6 +45,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 
@@ -591,7 +592,22 @@ private fun PlayerScreen(movie: CatalogMovie, onBack: () -> Unit) {
     DisposableEffect(player) {
         val listener = object : androidx.media3.common.Player.Listener {
             override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                playerError = "Video error: ${error.errorCodeName}. ${error.message ?: "The stream was rejected or is not supported."}"
+                var cause: Throwable? = error
+                var httpCode: Int? = null
+                var responseMessage: String? = null
+                while (cause != null) {
+                    if (cause is HttpDataSource.InvalidResponseCodeException) {
+                        httpCode = cause.responseCode
+                        responseMessage = cause.message
+                        break
+                    }
+                    cause = cause.cause
+                }
+                playerError = if (httpCode != null) {
+                    "HTTP ${httpCode}: ${responseMessage ?: "The video server rejected the request."} (${error.errorCodeName})"
+                } else {
+                    "Video error: ${error.errorCodeName}. ${error.message ?: "The stream was rejected or is not supported."}"
+                }
             }
         }
         player.addListener(listener)
