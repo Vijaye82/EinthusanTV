@@ -30,20 +30,16 @@ internal class EinthusanCatalogRepository(private val baseUrl: String = "https:/
                 ".synopsis, [class*=synopsis], [class*=description], [itemprop=description], meta[name=description]"
             )?.let { it.attr("content").ifBlank { it.text() }.trim() }.orEmpty()
 
-            val poster = findPoster(card, link)
-            val leadActor = findRoleName(card, "Lead")
-            val director = findRoleName(card, "Director")
-
             CatalogMovie(
                 title = title,
                 language = language.replaceFirstChar { it.uppercase() },
                 year = year,
                 genre = genre,
-                leadActor = leadActor,
-                director = director,
+                leadActor = findRoleName(card, "Lead"),
+                director = findRoleName(card, "Director"),
                 description = description,
                 id = id,
-                posterUrl = poster
+                posterUrl = findPoster(card, link)
             )
         }.distinctBy { it.id }
     }
@@ -54,7 +50,7 @@ internal class EinthusanCatalogRepository(private val baseUrl: String = "https:/
         var best: Element = link.parent() ?: link
         repeat(10) {
             val candidate = current ?: return@repeat
-            if (candidate.selectFirst("img") != null || candidate.selectFirst("[style*=background]") != null) {
+            if (candidate.selectFirst("img, picture, [style*=background], [data-bg], [data-background]") != null) {
                 best = candidate
             }
             if (candidate.select("a[href*=/movie/watch/]").size > 1) return best
@@ -64,21 +60,26 @@ internal class EinthusanCatalogRepository(private val baseUrl: String = "https:/
     }
 
     private fun findPoster(card: Element, link: Element): String {
-        val images = (card.select("img").asSequence() + link.select("img").asSequence()).distinct()
-        for (img in images) {
-            val candidate = sequenceOf("data-src", "data-original", "data-lazy-src", "src", "srcset", "data-srcset")
-                .map { key ->
-                    val raw = img.attr(key).substringBefore(",").trim().substringBefore(" ")
-                    img.absUrl(key).ifBlank { raw }
-                }
-                .firstOrNull { it.startsWith("http://") || it.startsWith("https://") }
-            if (candidate != null) return candidate
+        val elements = (sequenceOf(card, link) + card.select("*").asSequence()).distinct()
+        val imageAttributes = listOf(
+            "data-original", "data-src", "data-lazy-src", "data-image",
+            "data-poster", "data-bg", "data-background", "poster", "src", "data-srcset", "srcset"
+        )
+        for (element in elements) {
+            for (attribute in imageAttributes) {
+                val raw = element.attr(attribute).trim()
+                val candidate = if (attribute.endsWith("srcset")) {
+                    raw.split(",").firstOrNull()?.trim()?.substringBefore(" ") ?: ""
+                } else raw
+                val absolute = element.absUrl(attribute).ifBlank { candidate }
+                if (absolute.startsWith("https://") || absolute.startsWith("http://")) return absolute
+            }
+            val style = element.attr("style")
+            val cssUrl = Regex("""url\\(\\s*['"]?(https?://[^)'"]+)""", RegexOption.IGNORE_CASE)
+                .find(style)?.groupValues?.getOrNull(1)
+            if (!cssUrl.isNullOrBlank()) return cssUrl
         }
-        val background = (sequenceOf(card) + card.select("[style*=background]").asSequence())
-            .mapNotNull { element ->
-                Regex("""url\\(['"]?(https?://[^)'"]+)""").find(element.attr("style"))?.groupValues?.getOrNull(1)
-            }.firstOrNull()
-        return background.orEmpty()
+        return ""
     }
 
     private fun findRoleName(card: Element, role: String): String {
@@ -86,8 +87,7 @@ internal class EinthusanCatalogRepository(private val baseUrl: String = "https:/
             ?: return ""
         val previous = marker.previousElementSibling()
         if (previous != null && previous.text().isNotBlank()) return previous.text().trim()
-        val parentPrevious = marker.parent()?.previousElementSibling()
-        return parentPrevious?.text()?.trim().orEmpty()
+        return marker.parent()?.previousElementSibling()?.text()?.trim().orEmpty()
     }
 
     private companion object {
