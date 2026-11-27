@@ -727,8 +727,22 @@ private fun ChoiceChip(label: String, active: Boolean, onClick: () -> Unit) {
 
 @Composable
 private fun PrimaryButton(label: String, onClick: () -> Unit, compact: Boolean = false) {
+    var focused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (focused) 1.06f else 1f,
+        animationSpec = spring(dampingRatio = 0.76f, stiffness = 480f),
+        label = "primaryButtonFocusScale"
+    )
     Button(
         onClick = onClick,
+        modifier = Modifier
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .border(
+                width = if (focused) 2.dp else 1.dp,
+                color = if (focused) Color.White else Color.Transparent,
+                shape = RoundedCornerShape(9.dp)
+            )
+            .onFocusChanged { focused = it.isFocused },
         colors = ButtonDefaults.buttonColors(containerColor = Magenta, contentColor = Color.White),
         shape = RoundedCornerShape(9.dp),
         contentPadding = PaddingValues(horizontal = if (compact) 9.dp else 17.dp, vertical = if (compact) 3.dp else 8.dp)
@@ -737,9 +751,26 @@ private fun PrimaryButton(label: String, onClick: () -> Unit, compact: Boolean =
 
 @Composable
 private fun SecondaryButton(label: String, onClick: () -> Unit, compact: Boolean = false) {
+    var focused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (focused) 1.045f else 1f,
+        animationSpec = spring(dampingRatio = 0.78f, stiffness = 500f),
+        label = "secondaryButtonFocusScale"
+    )
     Button(
         onClick = onClick,
-        colors = ButtonDefaults.buttonColors(containerColor = SurfaceRaised, contentColor = Color.White),
+        modifier = Modifier
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .border(
+                width = if (focused) 2.dp else 1.dp,
+                color = if (focused) Color.White else Color.Transparent,
+                shape = RoundedCornerShape(9.dp)
+            )
+            .onFocusChanged { focused = it.isFocused },
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (focused) Color(0xFF454545) else SurfaceRaised,
+            contentColor = Color.White
+        ),
         shape = RoundedCornerShape(9.dp),
         contentPadding = PaddingValues(horizontal = if (compact) 9.dp else 15.dp, vertical = if (compact) 3.dp else 8.dp)
     ) { Text(label, fontSize = if (compact) 10.sp else 12.sp, fontWeight = FontWeight.SemiBold) }
