@@ -134,6 +134,8 @@ private fun EinthusanTvApp() {
     val languages = listOf("All", "Tamil", "Telugu", "Hindi", "Malayalam", "Kannada", "Bengali", "Punjabi", "Marathi")
     val genres = listOf("All", "Action", "Drama", "Comedy", "Romance", "Thriller", "Family", "Adventure")
     var page by remember { mutableStateOf("HOME") }
+    var manualUpdateCheck by remember { mutableIntStateOf(0) }
+    var updateCheckStatus by remember { mutableStateOf("Updates are checked automatically when EinthusanTV starts.") }
     var language by remember { mutableStateOf("All") }
     var genre by remember { mutableStateOf("All") }
     var year by remember { mutableStateOf("All") }
@@ -217,7 +219,7 @@ private fun EinthusanTvApp() {
             if (showSplash) {
                 EinthusanSplashScreen()
             } else {
-                AppUpdateChecker()
+                AppUpdateChecker(manualCheckRequest = manualUpdateCheck, onStatusChanged = { updateCheckStatus = it })
             if (playerOpen && selectedMovie != null) {
                 PlayerScreen(selectedMovie!!, onBack = { playerOpen = false })
             } else {
@@ -254,6 +256,7 @@ private fun EinthusanTvApp() {
                             else MovieShelf(saved, favourites, { selectedMovie = it }, { title -> favourites = favourites - title })
                         }
                         "SIGN IN" -> SignInPage()
+                        "SETTINGS" -> SettingsPage(updateStatus = updateCheckStatus, onCheckUpdates = { manualUpdateCheck++ })
                         "MOVIES" -> {
                             PageHeading("Explore Movies", "Live Einthusan movie catalogue")
                             FilterChips(languages, language) { language = it }
@@ -346,7 +349,7 @@ private fun TopNavigation(page: String, onNavigate: (String) -> Unit) {
             Text("TV", color = Magenta, fontSize = 25.sp, fontWeight = FontWeight.Black)
         }
         Spacer(Modifier.weight(1f))
-        listOf("HOME", "MOVIES", "SEARCH", "MY LIST", "SIGN IN").forEach { item ->
+        listOf("HOME", "MOVIES", "SEARCH", "MY LIST", "SIGN IN", "SETTINGS").forEach { item ->
             NavButton(item, page == item) { onNavigate(item) }
         }
     }
