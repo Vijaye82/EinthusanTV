@@ -576,7 +576,7 @@ private fun MovieShelf(movies: List<CatalogMovie>, favourites: Set<String>, shel
                 }
             }
         }
-        LazyRow(state = listState, modifier = Modifier.focusGroup(), horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(horizontal = 3.dp, vertical = 9.dp)) {
+        LazyRow(state = listState, modifier = Modifier.focusGroup(), horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 14.dp)) {
             itemsIndexed(movies, key = { _, movie -> movie.id }) { index, movie ->
                 val focusKey = shelfId + "|" + movie.id
                 val requester = remember(focusKey) {
@@ -594,8 +594,8 @@ private fun MovieShelf(movies: List<CatalogMovie>, favourites: Set<String>, shel
 private fun MovieCard(movie: CatalogMovie, saved: Boolean, focusRequester: FocusRequester, upEntryFocus: FocusRequester?, downEntryFocus: FocusRequester?, onSelect: () -> Unit, onToggleSaved: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
-        targetValue = if (focused) 1.055f else 1f,
-        animationSpec = spring(dampingRatio = 0.72f, stiffness = 420f),
+        targetValue = if (focused) 1.075f else 1f,
+        animationSpec = spring(dampingRatio = 0.68f, stiffness = 340f),
         label = "posterFocusScale"
     )
     Column(
@@ -606,11 +606,17 @@ private fun MovieCard(movie: CatalogMovie, saved: Boolean, focusRequester: Focus
                 if (downEntryFocus != null) down = downEntryFocus
             }
             .focusGroup()
-            .graphicsLayer { scaleX = scale; scaleY = scale }
-            .background(if (focused) Color(0xFF202020) else Color.Transparent, RoundedCornerShape(13.dp))
+             .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                shadowElevation = if (focused) 20f else 0f
+                shape = RoundedCornerShape(13.dp)
+                clip = false
+            }
+            .background(if (focused) Color(0xFF242424) else Color.Transparent, RoundedCornerShape(13.dp))
             .border(
                 width = if (focused) 3.dp else 1.dp,
-                color = if (focused) Color(0xFFE50914) else Color.White.copy(alpha = 0.08f),
+                color = if (focused) Color(0xFFFF3944) else Color.White.copy(alpha = 0.07f),
                 shape = RoundedCornerShape(13.dp)
             )
             .onFocusChanged { focused = it.isFocused }
