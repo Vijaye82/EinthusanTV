@@ -1,8 +1,13 @@
 package tv.einthusan.app.account
 
+import android.content.Context
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.net.HttpCookie
+import java.net.URI
 import java.net.CookieManager
 import java.net.CookiePolicy
 import java.net.HttpURLConnection
@@ -18,12 +23,73 @@ import tv.einthusan.app.playback.PlaybackSource
  * Session cookies remain in process memory only; passwords are never persisted.
  */
 class EinthusanAccountRepository(
+    context: Context,
     private val baseUrl: String = "https://einthusan.tv"
 ) : AccountRepository {
     companion object {
-        private val cookies = CookieManager(null, CookiePolicy.ACCEPT_ALL)
         @Volatile private var signedInName: String? = null
         @Volatile private var signedIn = false
+    }
+
+    private val appContext = context.applicationContext
+    private val cookies = CookieManager(null, CookiePolicy.ACCEPT_ALL)
+    private val sessionPrefs by lazy {
+        val masterKey = MasterKey.Builder(appContext)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+        EncryptedSharedPreferences.create(
+            appContext,
+            "einthusan_encrypted_session",
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
+
+    init {
+        restoreCookies()
+    }
+
+    private fun persistCookies() {
+        val array = org.json.JSONArray()
+        cookies.cookieStore.cookies.forEach { cookie ->
+            array.put(JSONObject()
+                .put("name", cookie.name)
+                .put("value", cookie.value)
+                .put("domain", cookie.domain ?: "einthusan.tv")
+                .put("path", cookie.path ?: "/")
+                .put("secure", cookie.secure)
+                .put("httpOnly", cookie.isHttpOnly)
+                .put("maxAge", cookie.maxAge)
+                .put("version", cookie.version)
+                .put("discard", cookie.discard)
+                .put("portlist", cookie.portlist ?: JSONObject.NULL))
+        }
+        sessionPrefs.edit().putString("cookies", array.toString()).apply()
+    }
+
+    private fun restoreCookies() {
+        runCatching {
+            val array = org.json.JSONArray(sessionPrefs.getString("cookies", "[]"))
+            for (index in 0 until array.length()) {
+                val item = array.getJSONObject(index)
+                val cookie = HttpCookie(item.getString("name"), item.getString("value")).apply {
+                    domain = item.optString("domain", "einthusan.tv")
+                    path = item.optString("path", "/")
+                    secure = item.optBoolean("secure")
+                    isHttpOnly = item.optBoolean("httpOnly")
+                    maxAge = item.optLong("maxAge", -1L)
+                    version = item.optInt("version", 0)
+                    discard = item.optBoolean("discard")
+                    if (!item.isNull("portlist")) portlist = item.optString("portlist")
+                }
+                if (!cookie.hasExpired()) {
+                    val domain = cookie.domain.removePrefix(".")
+                    cookies.cookieStore.add(URI("https://$domain/"), cookie)
+                }
+            }
+            signedIn = cookies.cookieStore.cookies.isNotEmpty()
+        }
     }
 
     override suspend fun currentState(): AccountState = withContext(Dispatchers.IO) {
@@ -36,6 +102,7 @@ class EinthusanAccountRepository(
                 signedIn = false
                 signedInName = null
                 cookies.cookieStore.removeAll()
+                sessionPrefs.edit().clear().apply()
                 AccountState.SignedOut
             } else AccountState.SignedIn(signedInName)
         }.getOrElse { AccountState.Error("Could not verify your Einthusan session: " + (it.message ?: "connection error")) }
@@ -86,6 +153,7 @@ class EinthusanAccountRepository(
             signedInName = Regex("<h2[^>]*>(.*?)</h2>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
                 .find(accountPage)?.groupValues?.getOrNull(1)?.replace(Regex("<[^>]+>"), "")?.let(::decodeHtml)?.trim()
             signedIn = true
+            persistCookies()
             AccountState.SignedIn(signedInName)
         } catch (error: Exception) {
             AccountState.Error(error.message ?: "Unable to sign in.")
@@ -181,6 +249,7 @@ class EinthusanAccountRepository(
         signedIn = false
         signedInName = null
         cookies.cookieStore.removeAll()
+        sessionPrefs.edit().clear().apply()
         Unit
     }
 
@@ -210,6 +279,7 @@ class EinthusanAccountRepository(
             if (body != null) connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
             val status = connection.responseCode
             cookies.put(url.toURI(), connection.headerFields)
+            persistCookies()
             val stream = if (status in 200..299 || status in 300..399) connection.inputStream else connection.errorStream
             return stream?.bufferedReader()?.use { it.readText() }.orEmpty()
         } finally {
