@@ -492,17 +492,42 @@ private fun TopNavigation(
         Triple("SEARCH", searchNav, searchEntry), Triple("MY LIST", myListNav, myListEntry),
         Triple("SIGN IN", signInNav, signInEntry)
     )
-    Row(Modifier.focusGroup(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        BrandMark(34.dp)
-        BrandWordmark(25.sp)
-        Spacer(Modifier.weight(1f))
-        items.forEachIndexed { index, (item, requester, entry) ->
-            NavButton(item, page == item, { onNavigate(item) }, requester,
-                items.getOrNull(index - 1)?.second, items.getOrNull(index + 1)?.second, entry)
+    Column(
+        Modifier.fillMaxWidth()
+            .background(
+                Brush.horizontalGradient(listOf(Color(0xFF191216), Color(0xFF151515), Color(0xFF101010))),
+                RoundedCornerShape(16.dp)
+            )
+            .border(1.dp, Color.White.copy(alpha = 0.075f), RoundedCornerShape(16.dp))
+            .padding(horizontal = 20.dp, vertical = 13.dp),
+        verticalArrangement = Arrangement.spacedBy(11.dp)
+    ) {
+        Row(Modifier.fillMaxWidth().focusGroup(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            BrandMark(38.dp)
+            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                BrandWordmark(23.sp)
+                Text("A WORLD OF CINEMA", color = TextMuted, fontSize = 8.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.45.sp)
+            }
+            Spacer(Modifier.weight(1f))
+            items.forEachIndexed { index, (item, requester, entry) ->
+                NavButton(item, page == item, { onNavigate(item) }, requester,
+                    items.getOrNull(index - 1)?.second, items.getOrNull(index + 1)?.second, entry)
+            }
+        }
+        Box(Modifier.fillMaxWidth().height(2.dp).background(Color.White.copy(alpha = 0.045f), RoundedCornerShape(2.dp))) {
+            Box(
+                Modifier.fillMaxWidth(when (page) {
+                    "HOME" -> 0.12f
+                    "MOVIES" -> 0.31f
+                    "SEARCH" -> 0.50f
+                    "MY LIST" -> 0.69f
+                    else -> 1f
+                }).fillMaxHeight()
+                    .background(Brush.horizontalGradient(listOf(Color(0xFFE50914), Color(0xFFFF6972))), RoundedCornerShape(2.dp))
+            )
         }
     }
 }
-
 
 @Composable
 private fun FeaturedHero(movie: CatalogMovie, onPlay: () -> Unit, onDetails: () -> Unit, playFocusRequester: FocusRequester? = null) {
@@ -969,8 +994,8 @@ private fun NavButton(
 ) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
-        targetValue = if (focused) 1.07f else 1f,
-        animationSpec = spring(dampingRatio = 0.76f, stiffness = 460f),
+        targetValue = if (focused) 1.075f else 1f,
+        animationSpec = spring(dampingRatio = 0.72f, stiffness = 420f),
         label = "navFocusScale"
     )
     Button(
@@ -982,24 +1007,25 @@ private fun NavButton(
                 if (rightFocus != null) right = rightFocus
                 if (downFocus != null) down = downFocus
             }
-            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .graphicsLayer { scaleX = scale; scaleY = scale; shadowElevation = if (focused) 9f else 0f }
             .border(
-                width = if (focused) 2.dp else 1.dp,
-                color = if (focused) Color.White else if (active) Color(0xFFFF5962) else Color.Transparent,
-                shape = RoundedCornerShape(22.dp)
+                width = if (focused) 2.dp else if (active) 1.dp else 1.dp,
+                color = if (focused) Color.White else if (active) Color(0xFFFF5962).copy(alpha = 0.8f) else Color.White.copy(alpha = 0.035f),
+                shape = RoundedCornerShape(10.dp)
             )
             .onFocusChanged { focused = it.isFocused },
         colors = ButtonDefaults.buttonColors(
             containerColor = when {
-                active -> Purple
-                focused -> Color(0xFF383838)
-                else -> Color.Transparent
+                active && focused -> Color(0xFFFF303B)
+                active -> Color(0xFF8F111B)
+                focused -> Color(0xFF393939)
+                else -> Color(0xFF242020)
             },
             contentColor = Color.White
         ),
-        shape = RoundedCornerShape(22.dp),
-        contentPadding = PaddingValues(horizontal = 13.dp, vertical = 7.dp)
-    ) { Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold) }
+        shape = RoundedCornerShape(10.dp),
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 9.dp)
+    ) { Text(label, fontSize = 10.sp, fontWeight = if (active || focused) FontWeight.ExtraBold else FontWeight.Bold, letterSpacing = 0.35.sp) }
 }
 
 @Composable
