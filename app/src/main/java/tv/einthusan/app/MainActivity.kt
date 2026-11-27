@@ -536,45 +536,43 @@ private fun EmptyState(title: String, message: String) {
 @Composable
 private fun PlayerScreen(movie: CatalogMovie, onBack: () -> Unit) {
     val context = LocalContext.current
-    var directUrl by remember(movie.id) { mutableStateOf<String?>(null) }
+    var source by remember(movie.id) { mutableStateOf<PlaybackSource?>(null) }
     var status by remember(movie.id) { mutableStateOf("Checking for an authorised video stream…") }
     var loading by remember(movie.id) { mutableStateOf(true) }
 
     LaunchedEffect(movie.id) {
         loading = true
+        source = null
         status = "Checking for an authorised video stream…"
-        directUrl = null
         try {
-            val resolved = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                EinthusanCatalogRepository().playableUrl(movie)
+            val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                PublicMarkupPlaybackResolver().resolve(movie)
             }
-            if (resolved.startsWith("https://") || resolved.startsWith("http://")) {
-                directUrl = resolved
-                status = "Preparing native playback…"
-            } else {
-                status = "A direct video stream is not available from the catalogue page. The website player has not been opened. We need Einthusan's approved playback integration to play this title here."
-            }
+            source = result.source
+            status = result.message ?: "Preparing native playback…"
         } catch (error: Exception) {
-            status = "Couldn't obtain an authorised video stream. " +
-                (error.message?.take(160) ?: "Einthusan's playback integration may be required.")
+            status = "Couldn't resolve an authorised video stream. " +
+                (error.message?.take(160) ?: "Playback integration may be required.")
         } finally {
             loading = false
         }
     }
 
-    val player = remember(context, movie.id) {
-        ExoPlayer.Builder(context).build().apply { playWhenReady = true }
-    }
-    LaunchedEffect(directUrl) {
-        val url = directUrl ?: return@LaunchedEffect
-        player.setMediaItem(MediaItem.fromUri(url))
+    val player = remember(context, movie.id) { ExoPlayer.Builder(context).build().apply { playWhenReady = true } }
+    LaunchedEffect(source) {
+        val stream = source ?: return@LaunchedEffect
+        val item = MediaItem.Builder()
+            .setUri(stream.url)
+            .apply { stream.mimeType?.let { setMimeType(it) } }
+            .build()
+        player.setMediaItem(item)
         player.prepare()
         player.play()
     }
     DisposableEffect(player) { onDispose { player.release() } }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        if (directUrl != null) {
+        if (source != null) {
             AndroidView(
                 factory = { viewContext ->
                     PlayerView(viewContext).apply {
@@ -607,13 +605,6 @@ private fun PlayerScreen(movie: CatalogMovie, onBack: () -> Unit) {
             SecondaryButton("‹ Back", onBack)
             Spacer(Modifier.width(18.dp))
             Text(movie.title, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-        }
-        if (directUrl != null) {
-            Text(
-                "Playing with the native EinthusanTV player",
-                Modifier.align(Alignment.BottomStart).fillMaxWidth().background(Color(0xCC10091A)).padding(12.dp),
-                color = Color(0xFFFFA9E5), fontSize = 11.sp, fontWeight = FontWeight.Bold
-            )
         }
     }
 }
