@@ -129,7 +129,7 @@ internal class EinthusanCatalogRepository(private val baseUrl: String = "https:/
                     candidates += baseScore to url
                 }
             }
-            val css = Regex("""url\\(\\s*['"]?(https?://[^)'"]+)""", RegexOption.IGNORE_CASE)
+            val css = Regex("""url\(\s*['"]?(https?://[^)'"]+)""", RegexOption.IGNORE_CASE)
                 .find(element.attr("style"))?.groupValues?.getOrNull(1)
             if (!css.isNullOrBlank()) candidates += baseScore to css
         }
