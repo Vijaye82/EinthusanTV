@@ -75,15 +75,18 @@ internal class WebViewPlaybackResolver(private val context: Context) : PlaybackR
                                 var child = video.querySelector('source[src]');
                                 if (child) source = child.src;
                             }
+                            var player = document.querySelector('#UIVideoPlayer');
+                            var raw = player && player.getAttribute('data-mp4-link');
                             var button = document.querySelector('#download-content, a[download]');
-                            return source || (button && button.href) || '';
+                            return source || (button && button.href) || raw || '';
                         })();"""
                     ) { raw ->
                         if (finished) return@evaluateJavascript
                         val domUrl = raw?.trim()?.removeSurrounding("\"")
                             ?.replace("\\u0026", "&")
-                        val url = domUrl?.takeIf { it.startsWith("https://") || it.startsWith("http://") }
+                        val discovered = domUrl?.takeIf { it.startsWith("https://") || it.startsWith("http://") }
                             ?: capturedMediaUrl.get()
+                        val url = discovered?.let(::toCdnUrl)
                         if (!url.isNullOrBlank()) {
                             completeWithUrl(url)
                         } else if (attempts >= MAX_ATTEMPTS) {
@@ -138,6 +141,20 @@ internal class WebViewPlaybackResolver(private val context: Context) : PlaybackR
                 }, PAGE_TIMEOUT_MS)
             }
         }
+
+    private fun toCdnUrl(raw: String): String {
+        return runCatching {
+            val uri = android.net.Uri.parse(raw)
+            val host = uri.host.orEmpty()
+            if (host.matches(Regex("\\d{1,3}(\\.\\d{1,3}){3}")) &&
+                uri.path.orEmpty().contains("/etv/content/")) {
+                val path = uri.path.orEmpty().let { if (it.startsWith("/d/")) it else "/d$it" }
+                val query = uri.encodedQuery.orEmpty().let { if (it.contains("p=priority")) it else listOf(it, "p=priority").filter(String::isNotBlank).joinToString("&") }
+                android.net.Uri.parse("https://cdn2.einthusan.io$path").buildUpon()
+                    .encodedQuery(query).build().toString()
+            } else raw
+        }.getOrDefault(raw)
+    }
 
     private companion object {
         const val MAX_ATTEMPTS = 50
