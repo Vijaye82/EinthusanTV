@@ -499,16 +499,24 @@ private fun EinthusanTvApp() {
                                 EmptyState("Your cinema is getting ready", catalogStatus)
                             } else {
                                 val hero = filtered.firstOrNull() ?: catalogueMovies.first()
-                                FeaturedHero(
-                                    movie = hero,
-                                    onPlay = { returnFocusKey = null; selectedMovie = hero; playerOpen = true },
-                                    onDetails = { returnFocusKey = null; selectedMovie = hero },
-                                    playFocusRequester = homePlayFocusRequester
-                                )
-                                Spacer(Modifier.height(34.dp))
+                                // Keep the featured artwork and its actions in a dedicated,
+                                // clipped region so the following shelves can never paint over it.
+                                Box(
+                                    Modifier.fillMaxWidth()
+                                        .height(330.dp)
+                                        .clip(RoundedCornerShape(13.dp))
+                                ) {
+                                    FeaturedHero(
+                                        movie = hero,
+                                        onPlay = { returnFocusKey = null; selectedMovie = hero; playerOpen = true },
+                                        onDetails = { returnFocusKey = null; selectedMovie = hero },
+                                        playFocusRequester = homePlayFocusRequester
+                                    )
+                                }
+                                Spacer(Modifier.height(42.dp))
                                 ShelfHeading("Browse by language", "Find cinema from across the region")
                                 FilterChips(languages, language, upEntryFocus = homePlayFocusRequester, downEntryFocus = trendingEntryFocus, firstChipFocusRequester = languageFilterEntryFocus) { language = it }
-                                Spacer(Modifier.height(8.dp))
+                                Spacer(Modifier.height(12.dp))
                                 ShelfHeading("Trending now", "Popular picks from the catalogue")
                                 MovieShelf(filtered.take(16), favourites, "home-trending", movieFocusRequesters, movieShelfStates, returnFocusKey, { movie, focusKey -> returnFocusKey = focusKey; selectedMovie = movie }, { title ->
                                     favourites = if (title in favourites) favourites - title else favourites + title
@@ -643,7 +651,7 @@ private fun TopNavigation(
 
 @Composable
 private fun FeaturedHero(movie: CatalogMovie, onPlay: () -> Unit, onDetails: () -> Unit, playFocusRequester: FocusRequester? = null) {
-    Box(Modifier.fillMaxWidth().height(300.dp).background(SurfaceDark, RoundedCornerShape(13.dp)).border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(13.dp))) {
+    Box(Modifier.fillMaxWidth().fillMaxHeight().background(SurfaceDark, RoundedCornerShape(13.dp)).border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(13.dp))) {
         if (!movie.backgroundUrl.isNullOrBlank()) {
             AsyncImage(model = ImageRequest.Builder(LocalContext.current).data(movie.backgroundUrl).crossfade(true).build(), contentDescription = movie.title + " featured artwork", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         } else PosterArtwork(movie, Modifier.fillMaxSize())
