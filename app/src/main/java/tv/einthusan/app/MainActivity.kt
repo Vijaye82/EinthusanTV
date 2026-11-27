@@ -142,6 +142,18 @@ private fun EinthusanTvApp() {
     var catalogueLoading by remember { mutableStateOf(true) }
     var catalogueError by remember { mutableStateOf<String?>(null) }
 
+    LaunchedEffect(selectedMovie?.id) {
+        val current = selectedMovie ?: return@LaunchedEffect
+        try {
+            val enriched = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                EinthusanCatalogRepository().details(current)
+            }
+            if (selectedMovie?.id == current.id) selectedMovie = enriched
+        } catch (_: Exception) {
+            // Keep the browse-page details if Einthusan's watch page is temporarily unavailable.
+        }
+    }
+
     LaunchedEffect(language) {
         catalogueLoading = true
         catalogueError = null
