@@ -26,6 +26,7 @@ internal class WebViewPlaybackResolver(private val context: Context) : PlaybackR
                 val webView = WebView(context)
                 val handler = Handler(Looper.getMainLooper())
                 val capturedMediaUrl = AtomicReference<String?>(null)
+                val capturedRequestHeaders = AtomicReference<Map<String, String>>(emptyMap())
                 var attempts = 0
                 var finished = false
 
@@ -53,8 +54,9 @@ internal class WebViewPlaybackResolver(private val context: Context) : PlaybackR
                     if (!url.startsWith("https://") && !url.startsWith("http://")) return
                     val cookie = CookieManager.getInstance().getCookie(url).orEmpty()
                     val headers = buildMap {
-                        put("Referer", "https://einthusan.tv/movie/watch/${movie.id}/")
-                        put("User-Agent", USER_AGENT)
+                        putAll(capturedRequestHeaders.get())
+                        put("Referer", capturedRequestHeaders.get()["Referer"] ?: "https://einthusan.tv/movie/watch/${movie.id}/")
+                        put("User-Agent", capturedRequestHeaders.get()["User-Agent"] ?: USER_AGENT)
                         if (cookie.isNotBlank()) put("Cookie", cookie)
                     }
                     finish(PlaybackResolution(source = PlaybackSource(
@@ -87,7 +89,7 @@ internal class WebViewPlaybackResolver(private val context: Context) : PlaybackR
                             ?.replace("\\u0026", "&")
                         val discovered = domUrl?.takeIf { it.startsWith("https://") || it.startsWith("http://") }
                             ?: capturedMediaUrl.get()
-                        val url = discovered?.let(::toCdnUrl)
+                        val url = discovered
                         if (!url.isNullOrBlank()) {
                             completeWithUrl(url)
                         } else if (attempts >= MAX_ATTEMPTS) {
@@ -123,6 +125,7 @@ internal class WebViewPlaybackResolver(private val context: Context) : PlaybackR
                             responseMime.contains("mpegurl") ||
                             responseMime.contains("dash+xml")
                         if (looksLikeMedia && capturedMediaUrl.get() == null) {
+                            capturedRequestHeaders.compareAndSet(emptyMap(), request.requestHeaders)
                             capturedMediaUrl.compareAndSet(null, url)
                             handler.post { if (!finished) inspectPage() }
                         }
@@ -145,20 +148,6 @@ internal class WebViewPlaybackResolver(private val context: Context) : PlaybackR
                 }, PAGE_TIMEOUT_MS)
             }
         }
-
-    private fun toCdnUrl(raw: String): String {
-        return runCatching {
-            val uri = android.net.Uri.parse(raw)
-            val host = uri.host.orEmpty()
-            if (host.matches(Regex("\\d{1,3}(\\.\\d{1,3}){3}")) &&
-                uri.path.orEmpty().contains("/etv/content/")) {
-                val path = uri.path.orEmpty().let { if (it.startsWith("/d/")) it else "/d$it" }
-                val query = uri.encodedQuery.orEmpty().let { if (it.contains("p=priority")) it else listOf(it, "p=priority").filter(String::isNotBlank).joinToString("&") }
-                android.net.Uri.parse("https://cdn2.einthusan.io$path").buildUpon()
-                    .encodedQuery(query).build().toString()
-            } else raw
-        }.getOrDefault(raw)
-    }
 
     private companion object {
         const val MAX_ATTEMPTS = 50
