@@ -129,7 +129,10 @@ internal class EinthusanCatalogRepository(private val baseUrl: String = "https:/
             // poster artwork that sits beside, rather than inside, the Watch link.
             if (lower.contains("/prof/") || lower.contains("/profile/") ||
                 lower.contains("avatar") || lower.contains("logo")) return
-            if (!lower.matches(Regex(".*\\.(jpg|jpeg|png|webp)(\\?.*)?$"))) return
+            val imageLike = lower.matches(Regex(".*\\.(jpg|jpeg|png|webp|avif|gif)(\\?.*)?$")) ||
+                lower.contains("image") || lower.contains("poster") || lower.contains("thumb") ||
+                lower.contains("cover") || lower.contains("uploads")
+            if (!imageLike) return
             candidates += baseScore to url
         }
 
@@ -149,9 +152,14 @@ internal class EinthusanCatalogRepository(private val baseUrl: String = "https:/
                     add(element.absUrl(attr).ifBlank { best }, score + 5)
                 }
             }
-            val css = Regex("""url\\(\\s*['"]?([^)'"]+)""", RegexOption.IGNORE_CASE)
+            val css = Regex("""url\(\s*['"]?([^)'"]+)""", RegexOption.IGNORE_CASE)
                 .find(element.attr("style"))?.groupValues?.getOrNull(1)
-            if (!css.isNullOrBlank()) add(element.absUrl("style").ifBlank { css }, score)
+            if (!css.isNullOrBlank()) add(css, score)
+            val srcset = element.attr("srcset").ifBlank { element.attr("data-srcset") }
+            if (srcset.isNotBlank()) {
+                srcset.split(",").map { it.trim().substringBefore(" ").trim() }
+                    .forEach { add(it, score + 8) }
+            }
         }
 
         // The watch link and explicitly labelled artwork are the strongest candidates.
