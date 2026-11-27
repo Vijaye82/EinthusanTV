@@ -31,6 +31,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -152,6 +154,8 @@ private fun EinthusanTvApp() {
     var alphabetical by remember { mutableStateOf(false) }
     var selectedMovie by remember { mutableStateOf<CatalogMovie?>(null) }
     var playerOpen by remember { mutableStateOf(false) }
+    val homePlayFocusRequester = remember { FocusRequester() }
+    var initialHomeFocusRequested by remember { mutableStateOf(false) }
     var favourites by remember {
         mutableStateOf(
             context.getSharedPreferences("user_preferences", android.content.Context.MODE_PRIVATE)
@@ -184,6 +188,14 @@ private fun EinthusanTvApp() {
             .edit()
             .putStringSet("favourites", favourites.toSet())
             .apply()
+    }
+
+    LaunchedEffect(catalogueMovies, page) {
+        if (!initialHomeFocusRequested && page == "HOME" && catalogueMovies.isNotEmpty()) {
+            delay(350)
+            runCatching { homePlayFocusRequester.requestFocus() }
+            initialHomeFocusRequested = true
+        }
     }
 
     BackHandler(enabled = page != "HOME" || selectedMovie != null || playerOpen) {
@@ -281,7 +293,8 @@ private fun EinthusanTvApp() {
                                 FeaturedHero(
                                     movie = hero,
                                     onPlay = { selectedMovie = hero; playerOpen = true },
-                                    onDetails = { selectedMovie = hero }
+                                    onDetails = { selectedMovie = hero },
+                                    playFocusRequester = homePlayFocusRequester
                                 )
                                 Text("Browse by language", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
                                 FilterChips(languages, language) { language = it }
@@ -384,7 +397,7 @@ private fun TopNavigation(page: String, onNavigate: (String) -> Unit) {
 
 
 @Composable
-private fun FeaturedHero(movie: CatalogMovie, onPlay: () -> Unit, onDetails: () -> Unit) {
+private fun FeaturedHero(movie: CatalogMovie, onPlay: () -> Unit, onDetails: () -> Unit, playFocusRequester: FocusRequester? = null) {
     Box(Modifier.fillMaxWidth().height(310.dp).background(SurfaceDark, RoundedCornerShape(8.dp))) {
         if (!movie.backgroundUrl.isNullOrBlank()) {
             AsyncImage(
@@ -408,7 +421,7 @@ private fun FeaturedHero(movie: CatalogMovie, onPlay: () -> Unit, onDetails: () 
             Text("${movie.year}  •  ${movie.language}  •  ${movie.genre}", color = Color.White.copy(alpha = 0.88f), fontSize = 13.sp)
             Text(movie.description, color = Color.White.copy(alpha = 0.82f), fontSize = 12.sp, maxLines = 2, lineHeight = 17.sp)
             Row(Modifier.focusGroup(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                PrimaryButton("▶  Play", onPlay)
+                PrimaryButton("▶  Play", onPlay, focusRequester = playFocusRequester)
                 SecondaryButton("ⓘ  More Info", onDetails)
             }
         }
@@ -675,6 +688,7 @@ private fun NavButton(label: String, active: Boolean, onClick: () -> Unit) {
     Button(
         onClick = onClick,
         modifier = Modifier
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .border(
                 width = if (focused) 2.dp else 1.dp,
@@ -727,7 +741,7 @@ private fun ChoiceChip(label: String, active: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun PrimaryButton(label: String, onClick: () -> Unit, compact: Boolean = false) {
+private fun PrimaryButton(label: String, onClick: () -> Unit, compact: Boolean = false, focusRequester: FocusRequester? = null) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (focused) 1.06f else 1f,
