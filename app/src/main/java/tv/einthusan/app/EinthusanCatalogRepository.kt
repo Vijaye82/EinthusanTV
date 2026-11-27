@@ -3,63 +3,94 @@ package tv.einthusan.app
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
 
-/** Loads public Einthusan catalogue cards only; login and playback are separate stages. */
+/** Reads Einthusan's public browse-page metadata and artwork. */
 internal class EinthusanCatalogRepository(private val baseUrl: String = "https://einthusan.tv") {
     fun featured(language: String): List<CatalogMovie> {
         val document = Jsoup.connect("$baseUrl/movie/browse/?lang=$language")
-            .userAgent("Mozilla/5.0 (Linux; Android 10; Android TV) AppleWebKit/537.36 Chrome/120.0 Safari/537.36")
+            .userAgent(USER_AGENT)
             .referrer(baseUrl)
             .timeout(25000)
             .get()
 
-        // The browse page has several unrelated image links. Start with the actual
-        // movie watch links instead of assuming a particular CSS class is the card.
-        return document.select("a[href*=/movie/watch/]").mapNotNull { watchLink ->
-            val card = findMovieCard(watchLink)
+        return document.select("a[href*=/movie/watch/]").mapNotNull { link ->
+            val href = link.absUrl("href").ifBlank { link.attr("href") }
+            val id = Regex("/movie/watch/([^/?#]+)").find(href)?.groupValues?.getOrNull(1)
+                ?: return@mapNotNull null
+            val card = findMovieCard(link)
             val title = sequenceOf(
-                watchLink.text().trim(),
-                watchLink.attr("title").trim(),
-                watchLink.attr("aria-label").trim(),
+                link.text().trim(), link.attr("title").trim(), link.attr("aria-label").trim(),
                 card.selectFirst("h1, h2, h3, h4")?.text()?.trim().orEmpty()
             ).firstOrNull { it.isNotBlank() } ?: return@mapNotNull null
 
-            val href = watchLink.absUrl("href").ifBlank { watchLink.attr("href") }
-            val movieId = Regex("/movie/watch/([^/?#]+)").find(href)?.groupValues?.getOrNull(1)
-                ?: href.substringAfterLast("/").ifBlank { title }
+            val text = card.text()
+            val year = Regex("\\b(?:19|20)\\d{2}\\b").find(text)?.value.orEmpty()
+            val genre = listOf("Action", "Drama", "Comedy", "Romance", "Thriller", "Family", "Adventure")
+                .firstOrNull { card.text().contains(it, ignoreCase = true) }.orEmpty()
+            val description = card.selectFirst(
+                ".synopsis, [class*=synopsis], [class*=description], [itemprop=description], meta[name=description]"
+            )?.let { it.attr("content").ifBlank { it.text() }.trim() }.orEmpty()
 
-            val image = card.selectFirst("img") ?: watchLink.selectFirst("img")
-            val poster = image?.let { img ->
-                listOf("src", "data-src", "data-original", "data-lazy-src", "data-srcset")
-                    .asSequence()
-                    .map { key -> img.absUrl(key).ifBlank { img.attr(key).substringBefore(",").substringBefore(" ") } }
-                    .firstOrNull { it.startsWith("https://") || it.startsWith("http://") }
-            }.orEmpty()
-
-            val cardText = card.text()
-            val year = Regex("\\b(?:19|20)\\d{2}\\b").find(cardText)?.value.orEmpty()
-            val description = card.selectFirst(".synopsis, [class*=synopsis], [class*=description]")?.text()?.trim().orEmpty()
+            val poster = findPoster(card, link)
+            val leadActor = findRoleName(card, "Lead")
+            val director = findRoleName(card, "Director")
 
             CatalogMovie(
-                title,
-                language.replaceFirstChar { it.uppercase() },
-                year,
-                "",
-                "",
-                "",
-                description,
-                movieId,
-                poster
+                title = title,
+                language = language.replaceFirstChar { it.uppercase() },
+                year = year,
+                genre = genre,
+                leadActor = leadActor,
+                director = director,
+                description = description,
+                id = id,
+                posterUrl = poster
             )
         }.distinctBy { it.id }
     }
 
     private fun findMovieCard(link: Element): Element {
+        link.parents().firstOrNull { it.hasClass("block1") }?.let { return it }
         var current: Element? = link
-        repeat(7) {
+        var best: Element = link.parent() ?: link
+        repeat(10) {
             val candidate = current ?: return@repeat
-            if (candidate.selectFirst("img") != null) return candidate
+            if (candidate.selectFirst("img") != null || candidate.selectFirst("[style*=background]") != null) {
+                best = candidate
+            }
+            if (candidate.select("a[href*=/movie/watch/]").size > 1) return best
             current = candidate.parent()
         }
-        return link.parent() ?: link
+        return best
+    }
+
+    private fun findPoster(card: Element, link: Element): String {
+        val images = (card.select("img").asSequence() + link.select("img").asSequence()).distinct()
+        for (img in images) {
+            val candidate = sequenceOf("data-src", "data-original", "data-lazy-src", "src", "srcset", "data-srcset")
+                .map { key ->
+                    val raw = img.attr(key).substringBefore(",").trim().substringBefore(" ")
+                    img.absUrl(key).ifBlank { raw }
+                }
+                .firstOrNull { it.startsWith("http://") || it.startsWith("https://") }
+            if (candidate != null) return candidate
+        }
+        val background = (sequenceOf(card) + card.select("[style*=background]").asSequence())
+            .mapNotNull { element ->
+                Regex("""url\\(['"]?(https?://[^)'"]+)""").find(element.attr("style"))?.groupValues?.getOrNull(1)
+            }.firstOrNull()
+        return background.orEmpty()
+    }
+
+    private fun findRoleName(card: Element, role: String): String {
+        val marker = card.select("*").firstOrNull { it.childrenSize() == 0 && it.text().trim().equals(role, true) }
+            ?: return ""
+        val previous = marker.previousElementSibling()
+        if (previous != null && previous.text().isNotBlank()) return previous.text().trim()
+        val parentPrevious = marker.parent()?.previousElementSibling()
+        return parentPrevious?.text()?.trim().orEmpty()
+    }
+
+    private companion object {
+        const val USER_AGENT = "Mozilla/5.0 (Linux; Android 10; Android TV) AppleWebKit/537.36 Chrome/120.0 Safari/537.36"
     }
 }
