@@ -363,8 +363,8 @@ private fun EinthusanTvApp() {
                 PlayerScreen(selectedMovie!!, accountRepository, onBack = { playerOpen = false })
             } else {
                 Column(
-                    Modifier.fillMaxSize().padding(horizontal = 52.dp, vertical = 44.dp).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(22.dp)
+                    Modifier.fillMaxSize().padding(horizontal = 52.dp, vertical = 18.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     TopNavigation(page, accountState is AccountState.SignedIn, { destination ->
                         page = destination
@@ -610,13 +610,13 @@ private fun TopNavigation(
         Modifier.fillMaxWidth()
             .background(Brush.horizontalGradient(listOf(Color(0xFF191216), Color(0xFF151515), Color(0xFF101010))), RoundedCornerShape(16.dp))
             .border(1.dp, Color.White.copy(alpha = 0.075f), RoundedCornerShape(16.dp))
-            .padding(horizontal = 20.dp, vertical = 13.dp),
-        verticalArrangement = Arrangement.spacedBy(11.dp)
+             .padding(horizontal = 18.dp, vertical = 7.dp),
+        verticalArrangement = Arrangement.spacedBy(5.dp)
     ) {
         Row(Modifier.fillMaxWidth().focusGroup(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            BrandMark(38.dp)
+            BrandMark(32.dp)
             Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                BrandWordmark(23.sp)
+                BrandWordmark(20.sp)
                 Text("A WORLD OF CINEMA", color = TextMuted, fontSize = 8.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.45.sp)
             }
             Spacer(Modifier.weight(1f))
@@ -1170,7 +1170,7 @@ private fun NavButton(
             contentColor = Color.White
         ),
         shape = RoundedCornerShape(10.dp),
-        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 9.dp)
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
     ) { Text(label, fontSize = 10.sp, fontWeight = if (active || focused) FontWeight.ExtraBold else FontWeight.Bold, letterSpacing = 0.35.sp) }
 }
 
