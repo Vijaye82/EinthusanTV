@@ -401,11 +401,7 @@ private fun EinthusanTvApp() {
                             playFocus = detailsPlayFocus,
                             saveFocus = detailsSaveFocus
                         )
-                    } else AnimatedContent(
-                        targetState = page,
-                        transitionSpec = { fadeIn(tween(190)) togetherWith fadeOut(tween(130)) },
-                        label = "pageTransition"
-                    ) { destination -> when (destination) {
+                    } else when (page) {
                         "SEARCH" -> SearchPage(
                             query, { query = it }, actor, { actor = it }, director, { director = it },
                             genre, { genre = it }, year, { year = it }, alphabetical, { alphabetical = it },
@@ -548,7 +544,7 @@ private fun EinthusanTvApp() {
                                 }, upEntryFocus = genreFilterEntryFocus, firstItemFocusRequester = recommendationsEntryFocus)
                             }
                         }
-                    } }
+                    }
                     }
                 }
             }
