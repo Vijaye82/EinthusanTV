@@ -1093,7 +1093,17 @@ private fun PlayerScreen(movie: CatalogMovie, accountRepository: EinthusanAccoun
     val player = remember(context) { ExoPlayer.Builder(context).build().apply { playWhenReady = false } }
     var playbackStatus by remember(movie.id) { mutableStateOf("Checking your Einthusan account and finding a stream…") }
     var quality by remember(movie.id) { mutableStateOf(PlaybackRequest.Quality.AUTO) }
+    var playerChromeVisible by remember(movie.id) { mutableStateOf(true) }
     DisposableEffect(player) { onDispose { player.release() } }
+
+    // The app's own title/quality/status overlays are separate from Media3's controls.
+    // Hide those overlays once playback starts so the film uses the full TV screen.
+    LaunchedEffect(playbackStatus, playerChromeVisible) {
+        if (playbackStatus.startsWith("Playing")) {
+            delay(3500)
+            playerChromeVisible = false
+        }
+    }
 
     LaunchedEffect(movie.id, quality) {
         player.stop()
@@ -1117,7 +1127,13 @@ private fun PlayerScreen(movie: CatalogMovie, accountRepository: EinthusanAccoun
         }
     }
 
-    Box(Modifier.fillMaxSize().background(Color.Black)) {
+    Box(
+        Modifier.fillMaxSize().background(Color.Black)
+            .onPreviewKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown) playerChromeVisible = true
+                false
+            }
+    ) {
         AndroidView(
             factory = { viewContext ->
                 PlayerView(viewContext).apply {
@@ -1131,27 +1147,29 @@ private fun PlayerScreen(movie: CatalogMovie, accountRepository: EinthusanAccoun
             update = { it.player = player },
             modifier = Modifier.fillMaxSize()
         )
-        Row(
-            Modifier.align(Alignment.TopStart).fillMaxWidth().background(Color(0xCC10091A)).padding(horizontal = 28.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            SecondaryButton("‹ Back", onBack)
-            Spacer(Modifier.width(18.dp))
-            Text(movie.title, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.weight(1f))
-            SecondaryButton("Quality: " + quality.name, {
-                quality = when (quality) {
-                    PlaybackRequest.Quality.AUTO -> PlaybackRequest.Quality.HD
-                    PlaybackRequest.Quality.HD -> PlaybackRequest.Quality.UHD
-                    PlaybackRequest.Quality.UHD -> PlaybackRequest.Quality.AUTO
-                }
-            })
+        if (playerChromeVisible) {
+            Row(
+                Modifier.align(Alignment.TopStart).fillMaxWidth().background(Color(0xCC10091A)).padding(horizontal = 28.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                SecondaryButton("‹ Back", onBack)
+                Spacer(Modifier.width(18.dp))
+                Text(movie.title, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.weight(1f))
+                SecondaryButton("Quality: " + quality.name, {
+                    quality = when (quality) {
+                        PlaybackRequest.Quality.AUTO -> PlaybackRequest.Quality.HD
+                        PlaybackRequest.Quality.HD -> PlaybackRequest.Quality.UHD
+                        PlaybackRequest.Quality.UHD -> PlaybackRequest.Quality.AUTO
+                    }
+                })
+            }
+            Text(
+                playbackStatus,
+                Modifier.align(Alignment.BottomStart).fillMaxWidth().background(Color(0xCC10091A)).padding(16.dp),
+                color = Color(0xFFFFA9E5), fontSize = 11.sp, fontWeight = FontWeight.Bold
+            )
         }
-        Text(
-            playbackStatus,
-            Modifier.align(Alignment.BottomStart).fillMaxWidth().background(Color(0xCC10091A)).padding(16.dp),
-            color = Color(0xFFFFA9E5), fontSize = 11.sp, fontWeight = FontWeight.Bold
-        )
     }
 }
 
