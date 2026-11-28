@@ -1,6 +1,14 @@
 package tv.einthusan.app.account
 
 import android.content.Context
+import android.net.Uri
+import android.os.Handler
+import android.os.Looper
+import android.webkit.CookieManager as WebCookieManager
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import kotlin.coroutines.resume
+import kotlinx.coroutines.suspendCancellableCoroutine
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import kotlinx.coroutines.Dispatchers
@@ -163,6 +171,118 @@ class EinthusanAccountRepository(
     }
 
 
+    private data class BrowserExtraction(val url: String? = null, val error: String? = null)
+
+    /**
+     * Mirrors the published Einthusan Stremio resolver: let Einthusan's own page JavaScript
+     * populate #download-content, then read the resulting short-lived media URL.
+     */
+    private suspend fun extractDownloadUrlInWebView(pageUrl: String): BrowserExtraction =
+        withContext(Dispatchers.Main) {
+            suspendCancellableCoroutine { continuation ->
+                val handler = Handler(Looper.getMainLooper())
+                val webView = WebView(appContext)
+                var completed = false
+                lateinit var poll: Runnable
+                lateinit var timeout: Runnable
+
+                fun finish(result: BrowserExtraction) {
+                    if (completed) return
+                    completed = true
+                    handler.removeCallbacks(poll)
+                    handler.removeCallbacks(timeout)
+                    runCatching {
+                        webView.stopLoading()
+                        webView.webViewClient = WebViewClient()
+                        webView.destroy()
+                    }
+                    if (continuation.isActive) continuation.resume(result)
+                }
+
+                poll = object : Runnable {
+                    override fun run() {
+                        if (completed) return
+                        val script = """
+                            (function() {
+                              var body = (document.body && document.body.innerText) || '';
+                              if (/Go Premium/i.test(body)) return JSON.stringify({error:'PREMIUM'});
+                              if (/SERVERS ARE ALMOST AT CAPACITY/i.test(body)) return JSON.stringify({error:'BUSY'});
+                              var button = document.querySelector('#download-content');
+                              var href = button ? (button.href || button.getAttribute('href') || '') : '';
+                              return JSON.stringify({href: href});
+                            })();
+                        """.trimIndent()
+                        webView.evaluateJavascript(script) { raw ->
+                            if (completed) return@evaluateJavascript
+                            val jsonText = runCatching {
+                                org.json.JSONTokener(raw ?: "null").nextValue() as? String
+                            }.getOrNull()
+                            val payload = jsonText?.let { runCatching { JSONObject(it) }.getOrNull() }
+                            when (payload?.optString("error")) {
+                                "PREMIUM" -> finish(BrowserExtraction(error = "PREMIUM"))
+                                "BUSY" -> finish(BrowserExtraction(error = "BUSY"))
+                                else -> {
+                                    val href = payload?.optString("href")?.takeIf { it.isNotBlank() && it != "null" }
+                                    if (href != null) finish(BrowserExtraction(url = href))
+                                    else handler.postDelayed(this, 500)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                timeout = Runnable {
+                    finish(BrowserExtraction(error = "Einthusan's page did not expose a download link after running its player scripts."))
+                }
+
+                webView.settings.javaScriptEnabled = true
+                webView.settings.domStorageEnabled = true
+                webView.settings.loadsImagesAutomatically = false
+                webView.settings.mediaPlaybackRequiresUserGesture = false
+                webView.settings.userAgentString =
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                webView.webViewClient = object : WebViewClient() {
+                    override fun onPageFinished(view: WebView?, url: String?) {
+                        if (!completed) handler.postDelayed(poll, 900)
+                    }
+                }
+
+                val webCookies = WebCookieManager.getInstance()
+                webCookies.setAcceptCookie(true)
+                cookies.cookieStore.cookies.filterNot { it.hasExpired() }.forEach { cookie ->
+                    val cookieText = buildString {
+                        append(cookie.name).append('=').append(cookie.value)
+                        append("; path=").append(cookie.path ?: "/")
+                        if (cookie.secure) append("; secure")
+                    }
+                    webCookies.setCookie(baseUrl, cookieText)
+                }
+                webCookies.flush()
+
+                continuation.invokeOnCancellation {
+                    handler.post { finish(BrowserExtraction(error = "Playback resolution cancelled.")) }
+                }
+                handler.postDelayed(timeout, 35_000)
+                webView.loadUrl(pageUrl, mapOf("Referer" to "$baseUrl/"))
+            }
+        }
+
+    private fun toEinthusanCdnUrl(mediaUrl: String): String = runCatching {
+        val uri = Uri.parse(mediaUrl)
+        if (!uri.encodedPath.orEmpty().contains("/etv/")) return mediaUrl
+        val path = uri.encodedPath.orEmpty()
+        val cdnPath = if (path.startsWith("/d/")) path else "/d$path"
+        uri.buildUpon()
+            .scheme("https")
+            .authority("cdn2.einthusan.io")
+            .encodedPath(cdnPath)
+            .apply {
+                if (uri.getQueryParameter("p") == null) appendQueryParameter("p", "priority")
+            }
+            .build()
+            .toString()
+    }.getOrDefault(mediaUrl)
+
     /**
      * Resolves a movie through Einthusan's own watch page and AJAX player handshake.
      * The site's response controls access and quality; no stream URL is fabricated or cached.
@@ -176,6 +296,37 @@ class EinthusanAccountRepository(
                 return@withContext PlaybackResult.Unavailable("This title is missing a valid Einthusan movie ID or language.")
             }
             try {
+                val encodedMovieId = URLEncoder.encode(safeId, "UTF-8")
+                val browserPageUrl = buildString {
+                    append("$baseUrl/movie/watch/").append(encodedMovieId).append("/?lang=").append(safeLanguage)
+                    if (quality == PlaybackRequest.Quality.UHD) append("&uhd=true")
+                }
+
+                // Primary resolver: execute Einthusan's page scripts in Android WebView and
+                // read the same #download-content URL used by the published Stremio addon.
+                val browserResult = extractDownloadUrlInWebView(browserPageUrl)
+                when (browserResult.error) {
+                    "PREMIUM" -> return@withContext PlaybackResult.Unavailable("This title or quality requires an eligible Einthusan Premium account.")
+                    "BUSY" -> return@withContext PlaybackResult.Unavailable("Einthusan servers are busy. Please try again shortly.")
+                }
+                browserResult.url?.let { rawUrl ->
+                    val mediaUrl = if (rawUrl.startsWith("/")) "$baseUrl$rawUrl" else rawUrl
+                    if (mediaUrl.startsWith("https://") || mediaUrl.startsWith("http://")) {
+                        val cdnUrl = toEinthusanCdnUrl(mediaUrl)
+                        val isUhd = Regex("/B[^/]+\\.mp4", RegexOption.IGNORE_CASE).containsMatchIn(cdnUrl)
+                        return@withContext PlaybackResult.Ready(listOf(PlaybackSource(
+                            url = cdnUrl,
+                            label = if (isUhd) "UHD" else "HD",
+                            mimeType = "video/mp4",
+                            headers = mapOf(
+                                "Referer" to browserPageUrl,
+                                "User-Agent" to "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                            )
+                        )))
+                    }
+                }
+
+                // Fallback to the legacy AJAX/HLS resolver if the page does not expose a direct link.
                 val referer = "$baseUrl/"
                 var watchPath = "/movie/watch/${URLEncoder.encode(safeId, "UTF-8")}/?lang=$safeLanguage"
                 val watchHtml = request("GET", watchPath, referer)
