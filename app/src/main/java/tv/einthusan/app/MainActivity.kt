@@ -503,7 +503,7 @@ private fun EinthusanTvApp() {
                                 // clipped region so the following shelves can never paint over it.
                                 Box(
                                     Modifier.fillMaxWidth()
-                                        .height(330.dp)
+                                        .height(460.dp)
                                         .clip(RoundedCornerShape(13.dp))
                                 ) {
                                     FeaturedHero(
@@ -513,7 +513,7 @@ private fun EinthusanTvApp() {
                                         playFocusRequester = homePlayFocusRequester
                                     )
                                 }
-                                Spacer(Modifier.height(42.dp))
+                                Spacer(Modifier.height(56.dp))
                                 ShelfHeading("Browse by language", "Find cinema from across the region")
                                 FilterChips(languages, language, upEntryFocus = homePlayFocusRequester, downEntryFocus = trendingEntryFocus, firstChipFocusRequester = languageFilterEntryFocus) { language = it }
                                 Spacer(Modifier.height(12.dp))
