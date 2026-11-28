@@ -269,6 +269,7 @@ private fun EinthusanTvApp() {
     var playerOpen by remember { mutableStateOf(false) }
     var introVisible by remember { mutableStateOf(true) }
     val homePlayFocusRequester = remember { FocusRequester() }
+    val homeContentScrollState = rememberScrollState()
     val homeNavFocus = remember { FocusRequester() }
     val moviesNavFocus = remember { FocusRequester() }
     val searchNavFocus = remember { FocusRequester() }
@@ -315,13 +316,16 @@ private fun EinthusanTvApp() {
             .apply()
     }
 
-    LaunchedEffect(introVisible, catalogueMovies, page) {
-        if (!introVisible && !initialHomeFocusRequested && page == "HOME" && catalogueMovies.isNotEmpty()) {
-            delay(350)
-            // Start focus in the fixed navigation bar. Focusing the hero Play button here
-            // caused the shared scroll container to move the navigation off the TV screen.
-            runCatching { homeNavFocus.requestFocus() }
-            initialHomeFocusRequested = true
+    LaunchedEffect(introVisible, catalogueMovies, page, selectedMovie) {
+        if (!introVisible && page == "HOME" && selectedMovie == null) {
+            // Always start Home at the top: retain no previous scroll offset that could
+            // put the poster shelves above the featured hero on a TV.
+            homeContentScrollState.scrollTo(0)
+            if (!initialHomeFocusRequested && catalogueMovies.isNotEmpty()) {
+                delay(350)
+                runCatching { homeNavFocus.requestFocus() }
+                initialHomeFocusRequested = true
+            }
         }
     }
 
@@ -375,10 +379,13 @@ private fun EinthusanTvApp() {
                         page = destination
                         selectedMovie = null
                         playerOpen = false
+                        if (destination == "HOME") {
+                            scope.launch { homeContentScrollState.scrollTo(0) }
+                        }
                     }, homeNavFocus, moviesNavFocus, searchNavFocus, myListNavFocus, signInNavFocus,
                         homePlayFocusRequester, exploreLanguageEntryFocus, searchTitleFocus, myListEntryFocus, signInEmailFocus)
                     Column(
-                        Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
+                        Modifier.weight(1f).fillMaxWidth().verticalScroll(homeContentScrollState),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                     if (selectedMovie != null) {
