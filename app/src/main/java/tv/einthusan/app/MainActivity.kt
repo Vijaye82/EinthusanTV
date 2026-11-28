@@ -318,7 +318,9 @@ private fun EinthusanTvApp() {
     LaunchedEffect(introVisible, catalogueMovies, page) {
         if (!introVisible && !initialHomeFocusRequested && page == "HOME" && catalogueMovies.isNotEmpty()) {
             delay(350)
-            runCatching { homePlayFocusRequester.requestFocus() }
+            // Start focus in the fixed navigation bar. Focusing the hero Play button here
+            // caused the shared scroll container to move the navigation off the TV screen.
+            runCatching { homeNavFocus.requestFocus() }
             initialHomeFocusRequested = true
         }
     }
@@ -364,15 +366,21 @@ private fun EinthusanTvApp() {
                 PlayerScreen(selectedMovie!!, accountRepository, onBack = { playerOpen = false })
             } else {
                 Column(
-                    Modifier.fillMaxSize().padding(horizontal = 52.dp, vertical = 18.dp).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    Modifier.fillMaxSize().padding(horizontal = 52.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
+                    // Keep navigation outside the scrolling content so TV focus and long
+                    // shelves can never push the app's primary navigation off-screen.
                     TopNavigation(page, accountState is AccountState.SignedIn, { destination ->
                         page = destination
                         selectedMovie = null
                         playerOpen = false
                     }, homeNavFocus, moviesNavFocus, searchNavFocus, myListNavFocus, signInNavFocus,
                         homePlayFocusRequester, exploreLanguageEntryFocus, searchTitleFocus, myListEntryFocus, signInEmailFocus)
+                    Column(
+                        Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
                     if (selectedMovie != null) {
                         MovieDetails(
                             selectedMovie!!, selectedMovie!!.title in favourites,
@@ -534,6 +542,7 @@ private fun EinthusanTvApp() {
                             }
                         }
                     } }
+                    }
                 }
             }
             }
